@@ -347,6 +347,9 @@ MonoBehaviour:
   rayonVoisinage: 0
   patternCurves: []
   p_cam: {fileID: 0}
+  maskPickingTerrain:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!64 &1201534265
 MeshCollider:
   m_ObjectHideFlags: 0
