@@ -43,15 +43,9 @@ public class FlyCamera : MonoBehaviour
     // Use this for initialization
     private void Start()
     {
+        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         stPov = false;
-        euler = transform.localEulerAngles; // save initial euler angles 
-    }
-
-
-    // Update is called once per frame
-    private void Update()
-    {
-
+        euler = transform.localEulerAngles;
     }
     /* https://discussions.unity.com/t/move-transform-to-target-in-x-seconds/48455/3 */
     private IEnumerator MoveObjectToDestination(Transform objectTransform, Vector3 destination, float duration)
@@ -77,23 +71,25 @@ public class FlyCamera : MonoBehaviour
     // LateUpdate is called every frame, if the Behaviour is enabled
     private void LateUpdate()
     {
-        cameraRotation.x += Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
-        cameraRotation.y += Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
+        if (!Input.GetKey(KeyCode.RightControl))
+        {
+            cameraRotation.x += Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
+            cameraRotation.y += Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
 
-        if (limitXRotation)
-        {
-            cameraRotation.x = Mathf.Clamp(cameraRotation.x, rotationLimitsX.x, rotationLimitsX.y);
-        }
-        if (limitYRotation)
-        {
-            cameraRotation.y = Mathf.Clamp(cameraRotation.y, rotationLimitsY.x, rotationLimitsY.y);
-        }
+            if (limitXRotation)
+            {
+                cameraRotation.x = Mathf.Clamp(cameraRotation.x, rotationLimitsX.x, rotationLimitsX.y);
+            }
+            if (limitYRotation)
+            {
+                cameraRotation.y = Mathf.Clamp(cameraRotation.y, rotationLimitsY.x, rotationLimitsY.y);
+            }
 
-        transform.localRotation = Quaternion.AngleAxis(cameraRotation.x, Vector3.up);
-        transform.localRotation *= Quaternion.AngleAxis(cameraRotation.y, Vector3.left);
-        if (!stPov) // Vérifiez d'abord si stPov est faux
+            transform.localRotation = Quaternion.AngleAxis(cameraRotation.x, Vector3.up);
+            transform.localRotation *= Quaternion.AngleAxis(cameraRotation.y, Vector3.left);
+        }
+        if (!stPov)
         {
-            
             // Gestion du mouvement
             float moveSpeed = normalMoveSpeed;
             if (Input.GetKey(KeyCode.LeftShift))
@@ -132,21 +128,20 @@ public class FlyCamera : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.F2))
             {
+
                 MoveObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                 MoveObject.transform.position = new Vector3(5, 1, 0);
                 CreatedChar = true;
                 StartCoroutine(MoveObjectToDestination(MoveObject.transform, Destination, 10f));
-
             }
         }
         else
         {
-            // Gestion du mode stPov
-            if (Input.GetKey(KeyCode.LeftControl))
+            if (Input.GetKeyDown(KeyCode.LeftControl))
             {
                 if (!stPov)
                 {
-                    Camera.main.transform.position = MoveObject.transform.position;                    
+                    Camera.main.transform.position = MoveObject.transform.position;
                     stPov = true;
                 }
                 else
@@ -157,5 +152,6 @@ public class FlyCamera : MonoBehaviour
             }
         }
     }
+
 }
 

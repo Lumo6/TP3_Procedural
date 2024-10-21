@@ -148,7 +148,12 @@ MonoBehaviour:
   rotationLimitsY: {x: 0, y: 0}
   limitXRotation: 0
   limitYRotation: 0
-  RotateObject: {fileID: 0}
+  RotateObject: {fileID: 1201534263}
+--- !u!20 &355823408 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 20145062961963366, guid: 5200e90a4a9fa9a4996f463685bd2d9a, type: 3}
+  m_PrefabInstance: {fileID: 769346684}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -341,7 +346,7 @@ MonoBehaviour:
   amplitudeDeformation: 0
   rayonVoisinage: 0
   patternCurves: []
-  p_cam: {fileID: 0}
+  p_cam: {fileID: 355823408}
   maskPickingTerrain:
     serializedVersion: 2
     m_Bits: 8

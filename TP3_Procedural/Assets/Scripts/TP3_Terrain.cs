@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class TP3_Terrain : MonoBehaviour
 {
-    private enum TypeAction {DEFORMATION_HAUT, DEFORMATION_BAS};
+    private enum TypeAction { DEFORMATION_HAUT, DEFORMATION_BAS };
     private TypeAction typeAction;
 
     public int dimension, resolution;
@@ -40,10 +40,10 @@ public class TP3_Terrain : MonoBehaviour
         public float distance;
 
         public Voisin(int ind, float dist)
-            {
-                indice = ind;
-                distance = dist;
-            }
+        {
+            indice = ind;
+            distance = dist;
+        }
     }
 
     private void Start()
@@ -51,7 +51,7 @@ public class TP3_Terrain : MonoBehaviour
         p_meshFilter = GetComponent<MeshFilter>();
         p_meshCollider = GetComponent<MeshCollider>();
         p_meshRenderer = GetComponent<MeshRenderer>();
-        
+
         p_cam = Camera.main;
         maskPickingTerrain = LayerMask.NameToLayer("Field");
 
@@ -60,17 +60,17 @@ public class TP3_Terrain : MonoBehaviour
 
     void Update()
     {
-        // si pas de picking sur le terrain, pas de d�formation, on quitte sans rien faire
+        // si pas de picking sur le terrain, pas de d formation, on quitte sans rien faire
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
 
-        // RECHERCHE du VERTEx s�lectionn� par le picking = CIBLE
+        // RECHERCHE du VERTEx s lectionn  par le picking = CIBLE
         cible = RechercherVertexCible(hit);
-        // RECHERCHE des voisins du vertex CIBLE , ceux � une distance <= voisinnage
-        // (param�tre public qui sera modifiable en temps r�el)
+        // RECHERCHE des voisins du vertex CIBLE , ceux   une distance <= voisinnage
+        // (param tre public qui sera modifiable en temps r el)
         listeVoisinsSel = RechercherVoisins(cible);
         Debug.Log(listeVoisinsSel.Count);
-        switch (typeAction) // typeAction modifi� en TR par traitement des �venements claviers
-        { // permettra de choisir entre creuser ou �lever le terrain
+        switch (typeAction) // typeAction modifi  en TR par traitement des  venements claviers
+        { // permettra de choisir entre creuser ou  lever le terrain
             case TypeAction.DEFORMATION_HAUT:
                 AppliquerDeformation(listeVoisinsSel, Vector3.up); // appliquer la modification locale du terrain
                 break;
@@ -78,7 +78,7 @@ public class TP3_Terrain : MonoBehaviour
                 AppliquerDeformation(listeVoisinsSel, Vector3.down);
                 break;
         }
-        majHUD(); // maj des informations affich�es en temps r�el } 
+        majHUD(); // maj des informations affich es en temps r el } 
     }
 
     void CreateField()
@@ -159,7 +159,8 @@ public class TP3_Terrain : MonoBehaviour
         Vector3 vmin = new Vector3();
         for (int i = 0; i < 3; i++)
         {
-            if (min >= Vector3.Distance(p_vertices[p_triangles[hit.triangleIndex * 3 + i]], hit.point)) {
+            if (min >= Vector3.Distance(p_vertices[p_triangles[hit.triangleIndex * 3 + i]], hit.point))
+            {
                 vmin = p_vertices[p_triangles[hit.triangleIndex * 3 + i]];
                 min = Vector3.Distance(p_vertices[p_triangles[hit.triangleIndex * 3 + i]], hit.point);
             }
@@ -171,8 +172,10 @@ public class TP3_Terrain : MonoBehaviour
     List<Voisin> RechercherVoisins(Vector3 cible)
     {
         List<Voisin> listV = new List<Voisin>();
-        for(int i = 0;i < p_vertices.Length; i++){
-            if(Vector3.Distance(cible,p_vertices[i]) < rayonVoisinage){
+        for (int i = 0; i < p_vertices.Length; i++)
+        {
+            if (Vector3.Distance(cible, p_vertices[i]) < rayonVoisinage)
+            {
                 listV.Add(new Voisin(i, Vector3.Distance(cible, p_vertices[i])));
             }
         }
@@ -180,34 +183,37 @@ public class TP3_Terrain : MonoBehaviour
         return new List<Voisin>();
     }
 
-    void AppliquerDeformation(List<Voisin> listeVoisinsSel, Vector3 orientation) 
+    void AppliquerDeformation(List<Voisin> listeVoisinsSel, Vector3 orientation)
     {
         float _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(0);
-        for(int i = 0;i < p_vertices.Length; i++){
-            if(p_vertices[i] == cible){
+        for (int i = 0; i < p_vertices.Length; i++)
+        {
+            if (p_vertices[i] == cible)
+            {
                 p_vertices[i] += orientation * _force;
             }
         }
-        foreach (Voisin softSel in listeVoisinsSel){
+        foreach (Voisin softSel in listeVoisinsSel)
+        {
             _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(softSel.distance / rayonVoisinage);
             p_vertices[softSel.indice] += orientation * _force;
         }
-        
+
         p_mesh.vertices = p_vertices;
         p_mesh.RecalculateNormals();
         p_meshFilter.mesh = p_mesh;
         RecalculerMeshCollider();
 
 
-        // � ce stade , on connait les voisins s�lectionn�s (appel � RechercherVoisins ()�
+        //   ce stade , on connait les voisins s lectionn s (appel   RechercherVoisins () 
         // ce sont les vertices qui sont dans le rayon de voisinage r autour du vertex cible
         // Pour chaque voisin (foreach), on connait sa distance d au vertex cible
         // le rapport c = d/r renvoie une valeur entre 0 et 1
-        // c devient une abscisse � utiliser avec la courbe d'animation avec evaluate(c) pour
-        // obtenir une force de d�formation fonction de la distance au vertex s�lectionn�
-        // rem : je g�re ici un tableau publix d'AnimationCurve : patternCurves[]
-        // rem : ce qui permet d'un pattern � un autre (modificaion de numPatternCurveEnCours)
-        // cette force est multipli� par une amplitudeDeformation
-        // rem c'est un param�tre public de la classe qui pourra �tre modifi� en temps r�el // cette force est multipli� par orientation (bas ou haut) selon qu'on creuse ou �l�ve
+        // c devient une abscisse   utiliser avec la courbe d'animation avec evaluate(c) pour
+        // obtenir une force de d formation fonction de la distance au vertex s lectionn 
+        // rem : je g re ici un tableau publix d'AnimationCurve : patternCurves[]
+        // rem : ce qui permet d'un pattern   un autre (modificaion de numPatternCurveEnCours)
+        // cette force est multipli  par une amplitudeDeformation
+        // rem c'est un param tre public de la classe qui pourra  tre modifi  en temps r el // cette force est multipli  par orientation (bas ou haut) selon qu'on creuse ou  l ve
     }
 }
