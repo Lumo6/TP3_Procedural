@@ -68,15 +68,18 @@ public class TP3_Terrain : MonoBehaviour
         // RECHERCHE des voisins du vertex CIBLE , ceux � une distance <= voisinnage
         // (param�tre public qui sera modifiable en temps r�el)
         listeVoisinsSel = RechercherVoisins(cible);
-        Debug.Log(listeVoisinsSel.Count);
-        switch (typeAction) // typeAction modifi� en TR par traitement des �venements claviers
-        { // permettra de choisir entre creuser ou �lever le terrain
-            case TypeAction.DEFORMATION_HAUT:
-                AppliquerDeformation(listeVoisinsSel, Vector3.up); // appliquer la modification locale du terrain
-                break;
-            case TypeAction.DEFORMATION_BAS:
-                AppliquerDeformation(listeVoisinsSel, Vector3.down);
-                break;
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            switch (typeAction) // typeAction modifi� en TR par traitement des �venements claviers
+            { // permettra de choisir entre creuser ou �lever le terrain
+                case TypeAction.DEFORMATION_HAUT:
+                    AppliquerDeformation(listeVoisinsSel, Vector3.up); // appliquer la modification locale du terrain
+                    break;
+                case TypeAction.DEFORMATION_BAS:
+                    AppliquerDeformation(listeVoisinsSel, Vector3.down);
+                    break;
+            }
         }
         majHUD(); // maj des informations affich�es en temps r�el } 
     }
@@ -171,13 +174,13 @@ public class TP3_Terrain : MonoBehaviour
     List<Voisin> RechercherVoisins(Vector3 cible)
     {
         List<Voisin> listV = new List<Voisin>();
-        for(int i = 0;i < p_vertices.Length; i++){
+        for(int i = 0; i < p_vertices.Length; i++){
             if(Vector3.Distance(cible,p_vertices[i]) < rayonVoisinage){
                 listV.Add(new Voisin(i, Vector3.Distance(cible, p_vertices[i])));
             }
         }
 
-        return new List<Voisin>();
+        return listV;
     }
 
     void AppliquerDeformation(List<Voisin> listeVoisinsSel, Vector3 orientation) 
