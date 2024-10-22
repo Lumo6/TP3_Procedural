@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
@@ -12,8 +14,7 @@ public class TP3_Terrain : MonoBehaviour
 
     public int dimension, resolution;
     public bool CentrerPivot;
-    public float amplitudeDeformation;
-    public float rayonVoisinage;
+    public float amplitudeDeformation, rayonVoisinage;
     public List<AnimationCurve> patternCurves;
 
     private Mesh p_mesh;
@@ -29,10 +30,11 @@ public class TP3_Terrain : MonoBehaviour
     private RaycastHit hit;
     public LayerMask maskPickingTerrain;
 
-    private List<Vector3> voisins;
     private List<Voisin> listeVoisinsSel;
 
     private int numPatternCurveEnCours;
+
+    private List<GameObject> chunks;
 
     private struct Voisin
     {
@@ -45,6 +47,8 @@ public class TP3_Terrain : MonoBehaviour
                 distance = dist;
             }
     }
+
+    private bool editing;
 
     private void Start()
     {
@@ -69,19 +73,37 @@ public class TP3_Terrain : MonoBehaviour
         // (param�tre public qui sera modifiable en temps r�el)
         listeVoisinsSel = RechercherVoisins(cible);
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            switch (typeAction) // typeAction modifi� en TR par traitement des �venements claviers
-            { // permettra de choisir entre creuser ou �lever le terrain
+        if (Input.GetMouseButton(0)) {
+            if (Input.GetKey(KeyCode.LeftControl)) {
+                typeAction = TypeAction.DEFORMATION_BAS;
+            } else {
+                typeAction = TypeAction.DEFORMATION_HAUT;
+            }
+
+            switch (typeAction) {
                 case TypeAction.DEFORMATION_HAUT:
-                    AppliquerDeformation(listeVoisinsSel, Vector3.up); // appliquer la modification locale du terrain
+                    AppliquerDeformation(listeVoisinsSel, Vector3.up);
                     break;
                 case TypeAction.DEFORMATION_BAS:
                     AppliquerDeformation(listeVoisinsSel, Vector3.down);
                     break;
             }
+        }         
+
+        if (Input.GetKey(KeyCode.RightAlt)) {
+            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0;
         }
-        majHUD(); // maj des informations affich�es en temps r�el } 
+        if (Input.GetKey(KeyCode.LeftAlt)) {
+            amplitudeDeformation += 0.01f;
+        }
+        if (Input.GetKey(KeyCode.I)) {
+            rayonVoisinage += 5;
+        }
+        if (Input.GetKey(KeyCode.O)) {
+            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 0;
+        }
+
+        majHUD(); // maj des informations affich�es en temps r�el
     }
 
     void CreateField()
