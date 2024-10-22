@@ -38,7 +38,7 @@ public class FlyCamera : MonoBehaviour
     private bool stPov;
     private bool CreatedChar = false;
     private Vector3 euler;
-    private Vector3 Destination = new Vector3(0, 1, 0);
+    private Vector3 Destination =  Vector3.zero;
 
     // Use this for initialization
     private void Start()
@@ -67,10 +67,46 @@ public class FlyCamera : MonoBehaviour
         }
         objectTransform.position = destination;
     }
+    
+    private IEnumerator WaitforClick()
+    {
+        while (true)
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                yield break;
+            }
+            yield return null;
+        }
+    }
+
+    private IEnumerator WaitForClickAndMove()
+    {
+        while (Destination == Vector3.zero)
+        {
+            yield return StartCoroutine(WaitforClick());
+            //Destination = GetClickPosition();
+            Vector3 clickPos = GetClickPosition();
+            Destination = new Vector3(clickPos.x, 1, clickPos.z);
+        }
+        StartCoroutine(MoveObjectToDestination(MoveObject.transform, Destination, 10f));
+    }
+
+    private Vector3 GetClickPosition()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit))
+        {
+            return hit.point;
+        }
+        return Vector3.zero;
+    }
 
     // LateUpdate is called every frame, if the Behaviour is enabled
     private void LateUpdate()
     {
+        //Rotation de la caméra
         if (!Input.GetKey(KeyCode.RightControl))
         {
             cameraRotation.x += Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
@@ -88,6 +124,7 @@ public class FlyCamera : MonoBehaviour
             transform.localRotation = Quaternion.AngleAxis(cameraRotation.x, Vector3.up);
             transform.localRotation *= Quaternion.AngleAxis(cameraRotation.y, Vector3.left);
         }
+        //Gestion du positionnement de la caméra
         if (!stPov)
         {
             // Gestion du mouvement
@@ -105,34 +142,35 @@ public class FlyCamera : MonoBehaviour
             transform.position += transform.forward * moveSpeed * Input.GetAxis("Vertical") * Time.deltaTime;
 
             // Gestion du mouvement vertical
-            if (Input.GetKeyUp(KeyCode.A))
+            if (Input.GetKey(KeyCode.E))
             {
                 transform.position += transform.up * climbSpeed * Time.deltaTime;
             }
 
-            if (Input.GetKeyUp(KeyCode.Z))
+            if (Input.GetKey(KeyCode.Q))
             {
                 transform.position -= transform.up * climbSpeed * Time.deltaTime;
             }
         }
 
-        // Gestion de la rotation de l'objet
+        // Gestion de la rotation de l'objet avec CTRL Droit
         if (Input.GetKey(KeyCode.RightControl))
         {
             euler.y -= Input.GetAxis("Mouse X") * sensitivity;
             RotateObject.transform.localEulerAngles = euler;
         }
 
-        // Création de l'objet
+        // Création de l'objet avec F2
         if (!CreatedChar)
         {
             if (Input.GetKey(KeyCode.F2))
             {
-
                 MoveObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                //MoveObject.AddComponent<Rigidbody>();
                 MoveObject.transform.position = new Vector3(5, 1, 0);
                 CreatedChar = true;
-                StartCoroutine(MoveObjectToDestination(MoveObject.transform, Destination, 10f));
+                StartCoroutine(WaitForClickAndMove());
+
             }
         }
         else
@@ -141,12 +179,12 @@ public class FlyCamera : MonoBehaviour
             {
                 if (!stPov)
                 {
-                    Camera.main.transform.position = MoveObject.transform.position;
+                    StartCoroutine(MoveObjectToDestination(Camera.main.transform, MoveObject.transform.position, 1f));
                     stPov = true;
                 }
                 else
                 {
-                    Camera.main.transform.position = new Vector3(0.0f, 1.0f, -10.0f);
+                    StartCoroutine(MoveObjectToDestination(Camera.main.transform, new Vector3(0.0f, 1.0f, -10.0f), 1f));
                     stPov = false;
                 }
             }
