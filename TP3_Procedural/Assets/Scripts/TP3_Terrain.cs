@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshCollider))]
@@ -34,8 +34,6 @@ public class TP3_Terrain : MonoBehaviour
 
     private int numPatternCurveEnCours;
 
-    private List<GameObject> chunks;
-
     private struct Voisin
     {
         public int indice;
@@ -48,7 +46,13 @@ public class TP3_Terrain : MonoBehaviour
             }
     }
 
-    private bool editing;
+    private static List<GameObject> chunks = new List<GameObject>();
+
+    private float randomColorTimer = 3.0f;
+
+    private bool waitingForDirection = false; // Pour savoir si on attend une flèche
+    private Vector3 newChunkDirection = Vector3.zero; // Pour stocker la direction du nouveau chunk
+
 
     private void Start()
     {
@@ -60,10 +64,65 @@ public class TP3_Terrain : MonoBehaviour
         maskPickingTerrain = LayerMask.NameToLayer("Field");
 
         CreateField();
+
+        chunks.Add(this.gameObject);
     }
 
     void Update()
     {
+        randomColorTimer -= Time.deltaTime;
+
+        if (Input.GetKeyDown(KeyCode.F5)) 
+        {
+            waitingForDirection = true; // On entre en mode d'attente pour une direction
+            newChunkDirection = Vector3.zero; // Réinitialise la direction
+            Debug.Log("Appuyez sur une flèche pour créer un chunk.");
+        }
+
+        // Si on attend une direction, on vérifie les touches de direction
+        if (waitingForDirection)
+        {
+            newChunkDirection = GetArrowDirection();
+
+            // Dès qu'on a une direction valide, on crée le chunk
+            if (newChunkDirection != Vector3.zero) 
+            {
+                CreateChunk(newChunkDirection);
+                waitingForDirection = false; // On sort du mode attente après la création du chunk
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightAlt)) {
+            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0;
+        }
+        if (Input.GetKeyDown(KeyCode.LeftAlt)) {
+            amplitudeDeformation += 0.01f;
+        }
+        if (Input.GetKeyDown(KeyCode.Plus)) {
+            rayonVoisinage += 5;
+        }
+        if (Input.GetKeyDown(KeyCode.Minus)) {
+            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 0;
+        }
+
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            for(int i = 1; i < chunks.Count; i++) {
+                chunks[i].GetComponent<MeshRenderer>().material.color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            }
+            randomColorTimer = 3.0f;
+        } 
+        
+        if (randomColorTimer <= 0.0f && chunks.Count > 0)
+        {
+            Color mainColor = chunks[0].GetComponent<MeshRenderer>().material.color;
+            for(int i = 1; i < chunks.Count; i++) {
+                chunks[i].GetComponent<MeshRenderer>().material.color = mainColor;
+            }
+        }
+
+        majHUD(); // maj des informations affich�es en temps r�el
+
         // si pas de picking sur le terrain, pas de d�formation, on quitte sans rien faire
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
 
@@ -88,22 +147,29 @@ public class TP3_Terrain : MonoBehaviour
                     AppliquerDeformation(listeVoisinsSel, Vector3.down);
                     break;
             }
-        }         
+        }
+    }
 
-        if (Input.GetKey(KeyCode.RightAlt)) {
-            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0;
+    private Vector3 GetArrowDirection()
+    {
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            return new Vector3(-dimension, 0, 0);
         }
-        if (Input.GetKey(KeyCode.LeftAlt)) {
-            amplitudeDeformation += 0.01f;
+        else if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            return new Vector3(dimension, 0, 0);
         }
-        if (Input.GetKey(KeyCode.I)) {
-            rayonVoisinage += 5;
+        else if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            return new Vector3(0, 0, dimension);
         }
-        if (Input.GetKey(KeyCode.O)) {
-            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 0;
+        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            return new Vector3(0, 0, -dimension);
         }
 
-        majHUD(); // maj des informations affich�es en temps r�el
+        return Vector3.zero; // Retourne zéro si aucune touche fléchée n'est pressée
     }
 
     void CreateField()
@@ -165,6 +231,30 @@ public class TP3_Terrain : MonoBehaviour
         p_meshCollider.sharedMesh = p_mesh;
 
         p_meshRenderer.material.color = Color.green;
+    }
+
+    private void CreateChunk(Vector3 offset)
+    {
+        bool canBeCreate = true;
+        foreach(GameObject c in chunks)
+        {
+            if (c.transform.position == this.transform.position + offset) {
+                canBeCreate = false;
+                break;
+            }
+        }
+
+        if(canBeCreate) 
+        {
+            GameObject chunk = new GameObject("TerrainChunk");
+            TP3_Terrain terrainChunk = chunk.AddComponent<TP3_Terrain>();
+            terrainChunk.dimension = this.dimension;
+            terrainChunk.resolution = this.resolution; 
+            terrainChunk.CentrerPivot = this.CentrerPivot;
+            terrainChunk.patternCurves = this.patternCurves;
+
+            chunk.transform.position = this.transform.position + offset;
+        }
     }
 
     private void RecalculerMeshCollider()
