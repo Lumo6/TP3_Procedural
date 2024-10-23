@@ -365,6 +365,7 @@ MonoBehaviour:
   patternBrushs:
   - {fileID: 2800000, guid: 558ade70070389d46bdd3636ca2a988e, type: 3}
   - {fileID: 2800000, guid: 9888b5caa00b8a742aca8c6164474834, type: 3}
+  - {fileID: 2800000, guid: 9909f4f99f053e742bc73fe9e8e8fec1, type: 3}
   p_cam: {fileID: 0}
   maskPickingTerrain:
     serializedVersion: 2

@@ -362,26 +362,29 @@ public class TP3_Terrain : MonoBehaviour
 
         float halfBrushWorldSize = rayonVoisinage / 2f; // Taille en espace 3D du brush
 
-        foreach (var voisin in voisins)
+        foreach (var voisin in voisins) // parcours des voisins
         {
-            Vector3 vertexPosition = p_vertices[voisin.indice];
+            Vector3 vertexPosition = p_vertices[voisin.indice]; // on récupère la position du vertex dans p_vertices
 
-            float relativeX = vertexPosition.x - brushCenter.x;
+            // Calcul position relative du vertex par rapport au centre du brush.
+            float relativeX = vertexPosition.x - brushCenter.x; 
             float relativeZ = vertexPosition.z - brushCenter.z;
 
-   
+            // Vérif si le vertex est bien dans la zone du brush
             if (Mathf.Abs(relativeX) <= halfBrushWorldSize && Mathf.Abs(relativeZ) <= halfBrushWorldSize)
             {
+                // coordonnées convertit entre 0 et 1. Cela permet de mapper la position 3D d'un pixel sur la texture du brush
                 float u = Mathf.InverseLerp(-halfBrushWorldSize, halfBrushWorldSize, relativeX);
                 float v = Mathf.InverseLerp(-halfBrushWorldSize, halfBrushWorldSize, relativeZ);
 
+                // Conversion en indice
                 int brushX = Mathf.FloorToInt(u * brushPixelSize);
                 int brushY = Mathf.FloorToInt(v * brushPixelSize);
-
 
                 brushX = Mathf.Clamp(brushX, 0, brushTexture.width - 1);
                 brushY = Mathf.Clamp(brushY, 0, brushTexture.height - 1);
 
+                // On convertit l'image en niveau de gris
                 Color brushColor = brushTexture.GetPixel(brushX, brushY);
                 float deformationAmount = brushColor.grayscale * amplitudeDeformation;
 
