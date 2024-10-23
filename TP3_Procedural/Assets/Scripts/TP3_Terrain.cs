@@ -12,10 +12,14 @@ public class TP3_Terrain : MonoBehaviour
     private enum TypeAction {DEFORMATION_HAUT, DEFORMATION_BAS};
     private TypeAction typeAction;
 
-    public int dimension, resolution;
+    private enum TypeDeformation {CURVE, BRUSH}
+    private TypeDeformation typeDeformation = TypeDeformation.CURVE;
+
+    public int dimension, resolution, brushSize;
     public bool CentrerPivot;
     public float amplitudeDeformation, rayonVoisinage;
     public List<AnimationCurve> patternCurves;
+    public List<Texture2D> patternBrushs;
 
     private Mesh p_mesh;
     private MeshFilter p_meshFilter;
@@ -33,6 +37,7 @@ public class TP3_Terrain : MonoBehaviour
     private List<Voisin> listeVoisinsSel;
 
     private int numPatternCurveEnCours;
+    private int numPatternBrushEnCours;
 
     private struct Voisin
     {
@@ -79,17 +84,19 @@ public class TP3_Terrain : MonoBehaviour
             Debug.Log("Appuyez sur une flèche pour créer un chunk.");
         }
 
-        // Si on attend une direction, on vérifie les touches de direction
-        if (waitingForDirection)
+        if (Input.GetKeyDown(KeyCode.L))
         {
-            newChunkDirection = GetArrowDirection();
-
-            // Dès qu'on a une direction valide, on crée le chunk
-            if (newChunkDirection != Vector3.zero) 
+            switch(typeDeformation)
             {
-                CreateChunk(newChunkDirection);
-                waitingForDirection = false; // On sort du mode attente après la création du chunk
+                case TypeDeformation.CURVE:
+                    typeDeformation = TypeDeformation.BRUSH;
+                    break;
+                case TypeDeformation.BRUSH:
+                    typeDeformation = TypeDeformation.CURVE;
+                    break;
             }
+
+            Debug.Log(typeDeformation);
         }
 
         if (Input.GetKeyDown(KeyCode.RightAlt)) {
@@ -113,6 +120,40 @@ public class TP3_Terrain : MonoBehaviour
             randomColorTimer = 3.0f;
         } 
         
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            if (typeDeformation == TypeDeformation.CURVE) {
+                numPatternCurveEnCours = (numPatternCurveEnCours + 1) % patternCurves.Count; 
+                Debug.Log("Curve sélectionné : " + numPatternCurveEnCours);
+            } else {
+                typeDeformation = TypeDeformation.CURVE;
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            if (typeDeformation == TypeDeformation.BRUSH)
+            {
+                numPatternBrushEnCours = (numPatternBrushEnCours + 1) % patternBrushs.Count; 
+                Debug.Log("Brush sélectionné : " + numPatternBrushEnCours);
+            } else {
+                typeDeformation = TypeDeformation.BRUSH;
+            }
+        }
+
+        // Si on attend une direction, on vérifie les touches de direction
+        if (waitingForDirection)
+        {
+            newChunkDirection = GetArrowDirection();
+
+            // Dès qu'on a une direction valide, on crée le chunk
+            if (newChunkDirection != Vector3.zero) 
+            {
+                CreateChunk(newChunkDirection);
+                waitingForDirection = false; // On sort du mode attente après la création du chunk
+            }
+        }
+
         if (randomColorTimer <= 0.0f && chunks.Count > 0)
         {
             Color mainColor = chunks[0].GetComponent<MeshRenderer>().material.color;
@@ -121,33 +162,29 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        majHUD(); // maj des informations affich�es en temps r�el
+        majHUD();
 
-        // si pas de picking sur le terrain, pas de d�formation, on quitte sans rien faire
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
 
-        // RECHERCHE du VERTEx s�lectionn� par le picking = CIBLE
         cible = RechercherVertexCible(hit);
-        // RECHERCHE des voisins du vertex CIBLE , ceux � une distance <= voisinnage
-        // (param�tre public qui sera modifiable en temps r�el)
+
         listeVoisinsSel = RechercherVoisins(cible);
 
         if (Input.GetMouseButton(0)) {
-            if (Input.GetKey(KeyCode.LeftControl)) {
-                typeAction = TypeAction.DEFORMATION_BAS;
-            } else {
-                typeAction = TypeAction.DEFORMATION_HAUT;
-            }
+            typeAction = Input.GetKey(KeyCode.LeftControl) ? TypeAction.DEFORMATION_BAS : TypeAction.DEFORMATION_HAUT;
 
-            switch (typeAction) {
-                case TypeAction.DEFORMATION_HAUT:
-                    AppliquerDeformation(listeVoisinsSel, Vector3.up);
+            Vector3 direction = typeAction == TypeAction.DEFORMATION_BAS ? Vector3.down : Vector3.up;
+
+            switch (typeDeformation) {
+                case TypeDeformation.CURVE:
+                    AppliquerDeformation(listeVoisinsSel, direction);
                     break;
-                case TypeAction.DEFORMATION_BAS:
-                    AppliquerDeformation(listeVoisinsSel, Vector3.down);
+                case TypeDeformation.BRUSH:
+                    AppliquerDeformationBrush(listeVoisinsSel);
                     break;
             }
         }
+
     }
 
     private Vector3 GetArrowDirection()
@@ -172,7 +209,7 @@ public class TP3_Terrain : MonoBehaviour
         return Vector3.zero; // Retourne zéro si aucune touche fléchée n'est pressée
     }
 
-    void CreateField()
+    public void CreateField()
     {
         p_mesh = new Mesh();
         p_mesh.Clear();
@@ -312,17 +349,58 @@ public class TP3_Terrain : MonoBehaviour
         p_mesh.RecalculateNormals();
         p_meshFilter.mesh = p_mesh;
         RecalculerMeshCollider();
-
-
-        // � ce stade , on connait les voisins s�lectionn�s (appel � RechercherVoisins ()�
-        // ce sont les vertices qui sont dans le rayon de voisinage r autour du vertex cible
-        // Pour chaque voisin (foreach), on connait sa distance d au vertex cible
-        // le rapport c = d/r renvoie une valeur entre 0 et 1
-        // c devient une abscisse � utiliser avec la courbe d'animation avec evaluate(c) pour
-        // obtenir une force de d�formation fonction de la distance au vertex s�lectionn�
-        // rem : je g�re ici un tableau publix d'AnimationCurve : patternCurves[]
-        // rem : ce qui permet d'un pattern � un autre (modificaion de numPatternCurveEnCours)
-        // cette force est multipli� par une amplitudeDeformation
-        // rem c'est un param�tre public de la classe qui pourra �tre modifi� en temps r�el // cette force est multipli� par orientation (bas ou haut) selon qu'on creuse ou �l�ve
     }
+
+    private void AppliquerDeformationBrush(List<Voisin> voisins)
+    {
+        if (numPatternBrushEnCours >= patternBrushs.Count) return;  // Si pas de brush return
+
+        Texture2D brushTexture = patternBrushs[numPatternBrushEnCours]; // On récupère la texture
+        int brushPixelSize = brushTexture.width; // Taille du brush
+
+        Vector3 brushCenter = cible; // Point où on a cliqué
+
+        float halfBrushWorldSize = rayonVoisinage / 2f; // Taille en espace 3D du brush
+
+        foreach (var voisin in voisins)
+        {
+            Vector3 vertexPosition = p_vertices[voisin.indice];
+
+            float relativeX = vertexPosition.x - brushCenter.x;
+            float relativeZ = vertexPosition.z - brushCenter.z;
+
+   
+            if (Mathf.Abs(relativeX) <= halfBrushWorldSize && Mathf.Abs(relativeZ) <= halfBrushWorldSize)
+            {
+                float u = Mathf.InverseLerp(-halfBrushWorldSize, halfBrushWorldSize, relativeX);
+                float v = Mathf.InverseLerp(-halfBrushWorldSize, halfBrushWorldSize, relativeZ);
+
+                int brushX = Mathf.FloorToInt(u * brushPixelSize);
+                int brushY = Mathf.FloorToInt(v * brushPixelSize);
+
+
+                brushX = Mathf.Clamp(brushX, 0, brushTexture.width - 1);
+                brushY = Mathf.Clamp(brushY, 0, brushTexture.height - 1);
+
+                Color brushColor = brushTexture.GetPixel(brushX, brushY);
+                float deformationAmount = brushColor.grayscale * amplitudeDeformation;
+
+                if (typeAction == TypeAction.DEFORMATION_HAUT)
+                {
+                    p_vertices[voisin.indice].y += deformationAmount;
+                }
+                else if (typeAction == TypeAction.DEFORMATION_BAS)
+                {
+                    p_vertices[voisin.indice].y -= deformationAmount;
+                }
+            }
+        }
+
+        p_mesh.vertices = p_vertices;
+        p_mesh.RecalculateNormals();
+        p_meshFilter.mesh = p_mesh;
+
+        RecalculerMeshCollider();
+    }
+
 }
