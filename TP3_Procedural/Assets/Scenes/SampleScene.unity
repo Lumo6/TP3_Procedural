@@ -311,7 +311,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dimension: 160
   resolution: 250
-  brushSize: 10
+  brushSize: 5
   CentrerPivot: 1
   amplitudeDeformation: 1.1
   rayonVoisinage: 50
@@ -319,45 +319,22 @@ MonoBehaviour:
   - serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: 0
-      value: 1.0000001
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  - serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 2
-      outSlope: 2
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
+      time: -0.0008460134
       value: 1
-      inSlope: 0
-      outSlope: 0
+      inSlope: -0.108977914
+      outSlope: -0.108977914
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
+      outWeight: 0.39002502
+    - serializedVersion: 3
+      time: 1
+      value: 0.000415802
+      inSlope: -0.64436626
+      outSlope: -0.64436626
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.4957134
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
@@ -365,7 +342,7 @@ MonoBehaviour:
   patternBrushs:
   - {fileID: 2800000, guid: 558ade70070389d46bdd3636ca2a988e, type: 3}
   - {fileID: 2800000, guid: 9888b5caa00b8a742aca8c6164474834, type: 3}
-  - {fileID: 2800000, guid: 9909f4f99f053e742bc73fe9e8e8fec1, type: 3}
+  - {fileID: 2800000, guid: 7f18b8b6cfe143a438de0c516e31fe65, type: 3}
   p_cam: {fileID: 0}
   maskPickingTerrain:
     serializedVersion: 2
