@@ -60,8 +60,6 @@ public class TP3_Terrain : MonoBehaviour
     private bool waitingForDirection = false; // Pour savoir si on attend une flèche
     private Vector3 newChunkDirection = Vector3.zero; // Pour stocker la direction du nouveau chunk
 
-    private static GameObject terrainActif;
-
     private void Start()
     {
         p_meshFilter = GetComponent<MeshFilter>();
@@ -75,8 +73,6 @@ public class TP3_Terrain : MonoBehaviour
         SetHeightVertices();
 
         chunks.Add(this.gameObject);
-        terrainActif = this.gameObject;
-        Debug.Log("Terrain sélectionné : " + terrainActif.gameObject.name);
     }
 
     void Update()
@@ -106,24 +102,24 @@ public class TP3_Terrain : MonoBehaviour
         }
 
         if (Input.GetKeyDown(KeyCode.RightAlt)) {
-            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0;
+            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0.01f;
         }
         if (Input.GetKeyDown(KeyCode.LeftAlt)) {
-            amplitudeDeformation += 0.01f;
+            amplitudeDeformation = amplitudeDeformation + 0.01f < 5 ? amplitudeDeformation + 0.01f : 5.0f;
         }
         if (Input.GetKeyDown(KeyCode.Plus)) {
-            rayonVoisinage += 5;
+            rayonVoisinage = rayonVoisinage + 5 < 100 ? rayonVoisinage + 5 : 100;
         }
         if (Input.GetKeyDown(KeyCode.Minus)) {
-            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 0;
-        }
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-            brushSize = brushSize - 5 > 0 ? brushSize - 5 : 0;
+            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 1;
         }
         if (Input.GetKeyDown(KeyCode.O))
         {
-            brushSize += 5;
+            brushSize = brushSize + 5 < 100 ? brushSize + 5 : 100;
+        }
+        if (Input.GetKeyDown(KeyCode.I))
+        {
+            brushSize = brushSize - 5 > 0 ? brushSize - 5 : 1;
         }
 
         if (Input.GetKeyDown(KeyCode.M))
@@ -176,53 +172,35 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        if (Input.GetMouseButtonDown(1)) // Clic droit pour sélectionner le terrain
-        {
-            if (Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity))
-            {
-                GameObject selectedTerrain = hit.collider.gameObject;
-                if (chunks.Contains(selectedTerrain))
-                {
-                    terrainActif = selectedTerrain;
-                    Debug.Log("Terrain sélectionné : " + terrainActif.name);
-                }
-            }
-        }
-
         majHUD();
 
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
 
-        if (hit.collider.gameObject != terrainActif) return;
-
         if (Input.GetMouseButton(0)) {
-            if (terrainActif != null) 
-            {  
-                TP3_Terrain terrainScript = terrainActif.GetComponent<TP3_Terrain>();
+            GameObject go = hit.collider.gameObject;
+            TP3_Terrain terrainScript = go.GetComponent<TP3_Terrain>();
 
-                Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
+            Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
 
-                cible = terrainActif.transform.TransformPoint(tempCible);
+            cible = go.transform.TransformPoint(tempCible);
 
-                listeVoisinsSel = terrainScript.RechercherVoisins(cible);
+            listeVoisinsSel = terrainScript.RechercherVoisins(cible);
                 
-                if (terrainScript != null)
-                {
-                    typeAction = Input.GetKey(KeyCode.LeftControl) ? TypeAction.DEFORMATION_BAS : TypeAction.DEFORMATION_HAUT;
+            if (terrainScript != null)
+            {
+                typeAction = Input.GetKey(KeyCode.LeftControl) ? TypeAction.DEFORMATION_BAS : TypeAction.DEFORMATION_HAUT;
 
-                    Vector3 direction = typeAction == TypeAction.DEFORMATION_BAS ? Vector3.down : Vector3.up;
+                Vector3 direction = typeAction == TypeAction.DEFORMATION_BAS ? Vector3.down : Vector3.up;
 
-                    switch (typeDeformation) {
-                        case TypeDeformation.CURVE:
-                            terrainScript.AppliquerDeformation(listeVoisinsSel, direction);
-                            break;
-                        case TypeDeformation.BRUSH:
-                            terrainScript.AppliquerDeformationBrush(listeVoisinsSel);
-                            break;
-                    }
+                switch (typeDeformation) {
+                   case TypeDeformation.CURVE:
+                        terrainScript.AppliquerDeformation(listeVoisinsSel, direction);
+                        break;
+                    case TypeDeformation.BRUSH:
+                        terrainScript.AppliquerDeformationBrush(listeVoisinsSel);
+                        break;
                 }
             }
-            
         }
 
         if (Input.GetMouseButtonUp(0))
@@ -356,14 +334,8 @@ public class TP3_Terrain : MonoBehaviour
 
     private void RecalculerMeshCollider()
     {
-        if (terrainActif) {
-            TP3_Terrain terrainScript = terrainActif.GetComponent<TP3_Terrain>();
-            
-            if (terrainScript) {
-                terrainScript.p_meshCollider.sharedMesh = null;
-                terrainScript.p_meshCollider.sharedMesh = terrainScript.p_meshFilter.mesh;
-            }      
-        }
+        this.p_meshCollider.sharedMesh = null;
+        this.p_meshCollider.sharedMesh = this.p_meshFilter.mesh;
     }
 
     void majHUD()
@@ -412,7 +384,7 @@ public class TP3_Terrain : MonoBehaviour
 
     void AppliquerDeformation(List<Voisin> listeVoisinsSel, Vector3 orientation) 
     {
-        if (patternCurves.Count == 0 || terrainActif == null) return;
+        if (patternCurves.Count == 0) return;
 
         Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
 
@@ -445,13 +417,7 @@ public class TP3_Terrain : MonoBehaviour
     {
         if (patternBrushs.Count == 0) return;
 
-        if (terrainActif == null) return;
-
-        TP3_Terrain terrainScript = terrainActif.GetComponent<TP3_Terrain>();
-
-        if (terrainScript == null) return;
-
-        Vector3[] vertices = terrainScript.p_vertices;
+        Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
 
         Texture2D brushTexture = patternBrushs[numPatternBrushEnCours]; // Texture actuelle
         int brushPixelSize = brushTexture.width;  // Texture du mesh carré 
@@ -460,23 +426,31 @@ public class TP3_Terrain : MonoBehaviour
 
         Vector3 brushCenter = cible; // Vertex sélectionné par le clic
 
-        float brushWorldSize = rayonVoisinage * 2f; // Taille en espace 3D du brush (diamètre)
+        float brushWorldSize = brushSize * 2f; // Taille en espace 3D du brush (diamètre)
         float pixelPerVertex = (float)brushPixelSize / brushWorldSize; // Ratio pixels/vertex pour avoir la zone de moyenne
 
         foreach (var voisin in voisins)
         {
+            TP3_Terrain terrainScript = voisin.terrainAssocie.GetComponent<TP3_Terrain>();
+            if (terrainScript == null) return;
+
+            if (!terrainsModifies.ContainsKey(terrainScript))
+                terrainsModifies[terrainScript] = terrainScript.p_vertices;
+
+            Vector3[] vertices = terrainScript.p_vertices;
+
             Vector3 vertexPosition = vertices[voisin.indice];
 
             // Calcul des coordonnées relatives du vertex par rapport au centre du brush
-            float relativeX = vertexPosition.x - brushCenter.x;
-            float relativeZ = vertexPosition.z - brushCenter.z;
+            float relativeX = voisin.terrainAssocie.transform.TransformPoint(vertexPosition).x - brushCenter.x;
+            float relativeZ = voisin.terrainAssocie.transform.TransformPoint(vertexPosition).z - brushCenter.z;
 
             // Si le vertex est dans la zone du brush
-            if (Mathf.Abs(relativeX) <= rayonVoisinage && Mathf.Abs(relativeZ) <= rayonVoisinage)
+            if (Mathf.Abs(relativeX) <= brushSize && Mathf.Abs(relativeZ) <= brushSize)
             {
                 // On calcule les coordonnées normalisées (u, v) du vertex dans la zone du brush
-                float u = Mathf.InverseLerp(-rayonVoisinage, rayonVoisinage, relativeX);
-                float v = Mathf.InverseLerp(-rayonVoisinage, rayonVoisinage, relativeZ);
+                float u = Mathf.InverseLerp(-brushSize, brushSize, relativeX);
+                float v = Mathf.InverseLerp(-brushSize, brushSize, relativeZ);
 
                 // Conversion en coordonnées pixel dans la texture du brush
                 int brushX = Mathf.FloorToInt(u * brushPixelSize);
@@ -511,20 +485,24 @@ public class TP3_Terrain : MonoBehaviour
                 float deformationAmount = averageIntensity * amplitudeDeformation;
 
                 if (typeAction == TypeAction.DEFORMATION_HAUT)
-                {
-                    vertices[voisin.indice].y += deformationAmount;
-                }
+                    terrainsModifies[terrainScript][voisin.indice].y += deformationAmount;
+                
                 else if (typeAction == TypeAction.DEFORMATION_BAS)
-                {
-                    vertices[voisin.indice].y -= deformationAmount;
-                }
+                    terrainsModifies[terrainScript][voisin.indice].y -= deformationAmount;
             }
         }
 
         // Mise à jour du mesh
-        terrainScript.p_mesh.vertices = vertices;
-        terrainScript.p_mesh.RecalculateNormals();
-        terrainScript.p_meshFilter.mesh = terrainScript.p_mesh;
+        
+        foreach (var pair in terrainsModifies)
+        {
+            TP3_Terrain terrain = pair.Key;
+            Vector3[] vertices = pair.Value;
+
+            terrain.p_mesh.vertices = vertices;
+            terrain.p_mesh.RecalculateNormals();
+            terrain.p_meshFilter.mesh = terrain.p_mesh;
+        }
     }
 
     void SetHeightVertices()
