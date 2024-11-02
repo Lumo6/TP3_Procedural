@@ -563,6 +563,17 @@ public class TP3_Terrain : MonoBehaviour
 
         this.p_mesh.vertices = p_vertices;
         this.p_mesh.RecalculateNormals();
-        
     }
+
+     public int GetDimension() => dimension;
+    public int GetResolution() => resolution;
+    public int GetBrushSize() => brushSize;
+    public float GetAmplitudeDeformation() => amplitudeDeformation;
+    public float GetRayonVoisinage() => rayonVoisinage;
+    public int GetVerticesCount() => p_vertices != null ? p_vertices.Length : 0;
+    public int GetNormalsCount() => p_normals != null ? p_normals.Length : 0;
+    public int GetTrianglesCount() => p_triangles != null ? p_triangles.Length : 0;
+    public int GetNumPatternCurveEnCours() => numPatternCurveEnCours;
+    public int GetNumPatternBrushEnCours() => numPatternBrushEnCours;
+    public static int GetChunksCount() => chunks.Count;
 }
