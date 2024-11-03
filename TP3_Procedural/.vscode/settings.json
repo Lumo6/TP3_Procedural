@@ -56,5 +56,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "TP3_Procedural.sln"
+    "dotnet.defaultSolution": "TP3_Procedural.sln",
+    "dotnet.preferCSharpExtension": true
 }

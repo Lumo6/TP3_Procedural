@@ -15,6 +15,15 @@ public class TP3_Terrain : MonoBehaviour
     private enum TypeDeformation {CURVE, BRUSH}
     private TypeDeformation typeDeformation = TypeDeformation.CURVE;
 
+    public enum DistanceMetric { Euclidean, Manhattan, Chebyshev }
+    public DistanceMetric currentDistanceMetric = DistanceMetric.Euclidean;
+    public enum DistanceMetricFindVertices { Euclidean, Manhattan, Chebyshev }
+    public DistanceMetricFindVertices currentDistanceMetricFindVertices = DistanceMetricFindVertices.Euclidean;
+
+    private bool recalculateAllNormals = true;
+    private bool useGridSpace = true;
+    private bool meshNeedsUpdate = false;
+
     public int dimension, resolution, brushSize;
     public bool CentrerPivot;
     public float amplitudeDeformation, rayonVoisinage;
@@ -151,6 +160,22 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            ChangeDistanceMetric();
+        }
+
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            ChangeDistanceMetricFindVertices();
+        }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            recalculateAllNormals = !recalculateAllNormals;
+            Debug.Log("Recalculate all normals: " + recalculateAllNormals);
+        }
+
         // Si on attend une direction, on vérifie les touches de direction
         if (waitingForDirection)
         {
@@ -180,8 +205,23 @@ public class TP3_Terrain : MonoBehaviour
             GameObject go = hit.collider.gameObject;
             TP3_Terrain terrainScript = go.GetComponent<TP3_Terrain>();
 
-            Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
 
+            //Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
+            //cible = go.transform.TransformPoint(tempCible);
+
+            Mesh mesh = go.GetComponent<MeshFilter>().mesh;
+            int[] triangles = mesh.triangles;
+            Vector3[] vertices = mesh.vertices;
+
+            int triangleIndex = hit.triangleIndex * 3;
+            Vector3[] triangleVertices = new Vector3[]
+            {
+                vertices[triangles[triangleIndex]],
+                vertices[triangles[triangleIndex + 1]],
+                vertices[triangles[triangleIndex + 2]]
+            };
+
+            Vector3 tempCible = terrainScript.FindClosestVertex(triangleVertices, hit.point);
             cible = go.transform.TransformPoint(tempCible);
 
             listeVoisinsSel = terrainScript.RechercherVoisins(cible);
@@ -203,6 +243,7 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
+        // PHASE 6
         if (Input.GetMouseButtonUp(0))
         {
             RecalculerMeshCollider();
@@ -325,6 +366,9 @@ public class TP3_Terrain : MonoBehaviour
             terrainChunk.rayonVoisinage = this.rayonVoisinage;
             terrainChunk.brushSize = this.brushSize;
             terrainChunk.typeDeformation = this.typeDeformation;
+            terrainChunk.currentDistanceMetric = this.currentDistanceMetric;
+            terrainChunk.currentDistanceMetricFindVertices = this.currentDistanceMetricFindVertices;
+            terrainChunk.recalculateAllNormals = this.recalculateAllNormals;
 
             terrainChunk.p_meshFilter = newMeshFilter;
             terrainChunk.p_meshCollider = newMeshCollider;
@@ -363,19 +407,27 @@ public class TP3_Terrain : MonoBehaviour
         List<Voisin> listV = new List<Voisin>();
 
         foreach (GameObject chunk in chunks)
-        {
+        {   
             TP3_Terrain terrainScript = chunk.GetComponent<TP3_Terrain>();
+
+            float distanceChunkToCible = Vector3.Distance(cible, chunk.transform.position);
+
+            if (distanceChunkToCible > terrainScript.rayonVoisinage + terrainScript.dimension / 2)
+            {
+                continue;
+            }
 
             Vector3[] vertices = terrainScript.p_vertices;
 
             for (int i = 0; i < vertices.Length; i++)
             {
                 Vector3 vertexWorldPosition = chunk.transform.TransformPoint(vertices[i]);
-                float distanceToCible = Vector3.Distance(cible, vertexWorldPosition);
+                
+                float distanceToCible = CalculateDistanceVertices(cible, vertexWorldPosition);
 
                 if (distanceToCible <= terrainScript.rayonVoisinage)
-                {
-                    listV.Add(new Voisin(i, distanceToCible, terrainScript.gameObject)); 
+                {      
+                    listV.Add(new Voisin(i, distanceToCible, terrainScript.gameObject));
                 }
             }
         }
@@ -387,6 +439,7 @@ public class TP3_Terrain : MonoBehaviour
         if (patternCurves.Count == 0) return;
 
         Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
+        Dictionary<TP3_Terrain, List<int>> modifiedVertices = new Dictionary<TP3_Terrain, List<int>>();
 
         foreach (Voisin voisin in listeVoisinsSel)
         {
@@ -396,10 +449,12 @@ public class TP3_Terrain : MonoBehaviour
             if (!terrainsModifies.ContainsKey(terrainScript))
             {
                 terrainsModifies[terrainScript] = terrainScript.p_vertices;
+                modifiedVertices[terrainScript] = new List<int>();
             }
 
             float _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(voisin.distance / rayonVoisinage);
             terrainsModifies[terrainScript][voisin.indice] += orientation * _force;
+            modifiedVertices[terrainScript].Add(voisin.indice);
         }
 
         foreach (var pair in terrainsModifies)
@@ -408,8 +463,14 @@ public class TP3_Terrain : MonoBehaviour
             Vector3[] vertices = pair.Value;
 
             terrain.p_mesh.vertices = vertices;
-            terrain.p_mesh.RecalculateNormals();
+            
+            if (modifiedVertices.ContainsKey(terrain))
+            {
+                terrain.RecalculateNormalsModifiedVertices(modifiedVertices[terrain]);
+            }
+            
             terrain.p_meshFilter.mesh = terrain.p_mesh;
+
         }
     }
 
@@ -509,7 +570,7 @@ public class TP3_Terrain : MonoBehaviour
     {
         if (chunks.Count == 0) return;
 
-        for(int i = 0; i < chunks.Count; i++)
+        for (int i = 0; i < chunks.Count; i++)
         {
             TP3_Terrain chunk = chunks[i].GetComponent<TP3_Terrain>();
             if (gameObject.transform.position + (Vector3.left * dimension) == chunks[i].transform.position)
@@ -519,8 +580,8 @@ public class TP3_Terrain : MonoBehaviour
                     int leftVertexIndex = j * this.resolution + (this.resolution - 1);
                     int rightVertexIndex = j * this.resolution;
 
-                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;                       
-                } 
+                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;
+                }
                 continue;
             }
 
@@ -531,7 +592,7 @@ public class TP3_Terrain : MonoBehaviour
                     int rightVertexIndex = j * this.resolution + (this.resolution - 1);
                     int leftVertexIndex = j * this.resolution;
 
-                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;                       
+                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;
                 }
                 continue;
             }
@@ -541,9 +602,9 @@ public class TP3_Terrain : MonoBehaviour
                 for (int j = 0; j < this.resolution; j++)
                 {
                     int forwardVertexIndex = j;
-                    int backVertexIndex = (this.resolution * (this.resolution-1)) + j;
+                    int backVertexIndex = (this.resolution * (this.resolution - 1)) + j;
 
-                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;                       
+                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;
                 }
                 continue;
             }
@@ -553,19 +614,130 @@ public class TP3_Terrain : MonoBehaviour
                 for (int j = 0; j < this.resolution; j++)
                 {
                     int backVertexIndex = j;
-                    int forwardVertexIndex = (this.resolution * (this.resolution-1)) + j;
+                    int forwardVertexIndex = (this.resolution * (this.resolution - 1)) + j;
 
-                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;                       
+                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;
                 }
                 continue;
-            }       
+            }
         }
 
         this.p_mesh.vertices = p_vertices;
         this.p_mesh.RecalculateNormals();
     }
 
-     public int GetDimension() => dimension;
+    // PHASE 1 : Changement formule calcul de distance
+    void ChangeDistanceMetric()
+    {
+        currentDistanceMetric = (DistanceMetric)(((int)currentDistanceMetric + 1) % 3);
+        Debug.Log("Distance métrique actuelle: " + currentDistanceMetric);
+    }
+
+    // PHASE 2
+    Vector3 FindClosestVertex(Vector3[] vertices, Vector3 point)
+    {
+        Vector3 closestVertex = vertices[0];
+        float minDistance = CalculateDistance(closestVertex, point);
+
+        foreach (var vertex in vertices)
+        {
+            float distance = CalculateDistance(vertex, point);
+            if (distance < minDistance)
+            {
+                closestVertex = vertex;
+                minDistance = distance;
+            }
+        }
+        return closestVertex;
+    }
+
+    // PHASE 2
+    float CalculateDistance(Vector3 a, Vector3 b)
+    {
+        switch (currentDistanceMetric)
+        {
+            case DistanceMetric.Euclidean:
+                return Vector3.Distance(a, b); // Distance Euclidienne
+            case DistanceMetric.Manhattan:
+                return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y) + Mathf.Abs(a.z - b.z); // Distance Manhattan 
+            case DistanceMetric.Chebyshev:
+                return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z)); // Distance Chebyshev
+            default:
+                return 0.0f;
+        }
+    }
+
+    // PHASE 3 : Changement formule calcul de distance pour voisin
+    void ChangeDistanceMetricFindVertices()
+    {
+        currentDistanceMetricFindVertices = (DistanceMetricFindVertices)(((int)currentDistanceMetricFindVertices + 1) % 3);
+        Debug.Log("Distance métrique actuelle pour recherche voisin: " + currentDistanceMetricFindVertices);
+    }
+
+    // PHASE 3
+    float CalculateDistanceVertices(Vector3 a, Vector3 b)
+    {
+        switch (currentDistanceMetricFindVertices)
+        {
+            case DistanceMetricFindVertices.Euclidean:
+                return Vector3.Distance(a, b); // Distance Euclidienne
+            case DistanceMetricFindVertices.Manhattan:
+                return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y) + Mathf.Abs(a.z - b.z); // Distance Manhattan 
+            case DistanceMetricFindVertices.Chebyshev:
+                return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z)); // Distance Chebyshev
+            default:
+                return 0.0f;
+        }
+    }
+
+    // PHASE 4
+    void RecalculateNormalsModifiedVertices(List<int> modifiedVertices)
+    {
+        if (recalculateAllNormals)
+        {
+            this.p_mesh.RecalculateNormals();
+        }
+        else
+        {
+            Vector3[] vertices = this.p_mesh.vertices;
+            Vector3[] normals = this.p_mesh.normals;
+            int[] triangles = this.p_mesh.triangles;
+
+            foreach (int vertexIndex in modifiedVertices)
+            {
+                Vector3 recalculatedNormal = Vector3.zero;
+
+                // Loop through triangles and calculate normals for the ones containing vertexIndex
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    if (triangles[i] == vertexIndex || triangles[i + 1] == vertexIndex || triangles[i + 2] == vertexIndex)
+                    {
+                        // Get the vertices of the triangle
+                        Vector3 vertexA = vertices[triangles[i]];
+                        Vector3 vertexB = vertices[triangles[i + 1]];
+                        Vector3 vertexC = vertices[triangles[i + 2]];
+
+                        // Calculate the normal of the triangle
+                        Vector3 triangleNormal = Vector3.Cross(vertexB - vertexA, vertexC - vertexA).normalized;
+
+                        // Accumulate the normal
+                        recalculatedNormal += triangleNormal;
+                    }
+                }
+
+                // Average the accumulated normals and normalize the result
+                recalculatedNormal.Normalize();
+
+                // Set the recalculated normal for the vertex
+                normals[vertexIndex] = recalculatedNormal;
+            }
+
+            // Update the mesh normals
+            this.p_mesh.normals = normals;
+        }
+    }
+
+    public int GetDimension() => dimension;
     public int GetResolution() => resolution;
     public int GetBrushSize() => brushSize;
     public float GetAmplitudeDeformation() => amplitudeDeformation;
@@ -576,4 +748,6 @@ public class TP3_Terrain : MonoBehaviour
     public int GetNumPatternCurveEnCours() => numPatternCurveEnCours;
     public int GetNumPatternBrushEnCours() => numPatternBrushEnCours;
     public static int GetChunksCount() => chunks.Count;
+    public void SetDimension(int dimension) => this.dimension = dimension;
+    public void SetResolution(int resolution) => this.resolution = resolution;
 }
