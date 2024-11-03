@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -12,10 +12,14 @@ public class TP3_Terrain : MonoBehaviour
     private enum TypeAction { DEFORMATION_HAUT, DEFORMATION_BAS };
     private TypeAction typeAction;
 
-    public int dimension, resolution;
+    private enum TypeDeformation { CURVE, BRUSH }
+    private TypeDeformation typeDeformation = TypeDeformation.CURVE;
+
+    public int dimension, resolution, brushSize;
     public bool CentrerPivot;
     public float amplitudeDeformation, rayonVoisinage;
     public List<AnimationCurve> patternCurves;
+    public List<Texture2D> patternBrushs;
 
     private Mesh p_mesh;
     private MeshFilter p_meshFilter;
@@ -32,27 +36,29 @@ public class TP3_Terrain : MonoBehaviour
 
     private List<Voisin> listeVoisinsSel;
 
-    private int numPatternCurveEnCours;
+    private static int numPatternCurveEnCours;
+    private static int numPatternBrushEnCours;
 
     private struct Voisin
     {
         public int indice;
         public float distance;
-
-        public Voisin(int ind, float dist)
+        public GameObject terrainAssocie;
+        public Voisin(int ind, float dist, GameObject terrain)
         {
             indice = ind;
             distance = dist;
+            terrainAssocie = terrain;
         }
     }
 
     private static List<GameObject> chunks = new List<GameObject>();
+    private static int nbChunks = 0;
 
     private float randomColorTimer = 3.0f;
 
     private bool waitingForDirection = false; // Pour savoir si on attend une flèche
     private Vector3 newChunkDirection = Vector3.zero; // Pour stocker la direction du nouveau chunk
-
 
     private void Start()
     {
@@ -64,6 +70,7 @@ public class TP3_Terrain : MonoBehaviour
         maskPickingTerrain = LayerMask.NameToLayer("Field");
 
         CreateField();
+        SetHeightVertices();
 
         chunks.Add(this.gameObject);
     }
@@ -79,6 +86,81 @@ public class TP3_Terrain : MonoBehaviour
             Debug.Log("Appuyez sur une flèche pour créer un chunk.");
         }
 
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            switch (typeDeformation)
+            {
+                case TypeDeformation.CURVE:
+                    typeDeformation = TypeDeformation.BRUSH;
+                    break;
+                case TypeDeformation.BRUSH:
+                    typeDeformation = TypeDeformation.CURVE;
+                    break;
+            }
+
+            Debug.Log(typeDeformation);
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightAlt))
+        {
+            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0.01f;
+        }
+        if (Input.GetKeyDown(KeyCode.LeftAlt))
+        {
+            amplitudeDeformation = amplitudeDeformation + 0.01f < 5 ? amplitudeDeformation + 0.01f : 5.0f;
+        }
+        if (Input.GetKeyDown(KeyCode.Plus))
+        {
+            rayonVoisinage = rayonVoisinage + 5 < 100 ? rayonVoisinage + 5 : 100;
+        }
+        if (Input.GetKeyDown(KeyCode.Minus))
+        {
+            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 1;
+        }
+        if (Input.GetKeyDown(KeyCode.O))
+        {
+            brushSize = brushSize + 5 < 100 ? brushSize + 5 : 100;
+        }
+        if (Input.GetKeyDown(KeyCode.I))
+        {
+            brushSize = brushSize - 5 > 0 ? brushSize - 5 : 1;
+        }
+
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            for (int i = 1; i < chunks.Count; i++)
+            {
+                chunks[i].GetComponent<MeshRenderer>().material.color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            }
+            randomColorTimer = 3.0f;
+        }
+
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            if (typeDeformation == TypeDeformation.CURVE)
+            {
+                numPatternCurveEnCours = (numPatternCurveEnCours + 1) % patternCurves.Count;
+                Debug.Log("Curve sélectionné : " + numPatternCurveEnCours);
+            }
+            else
+            {
+                typeDeformation = TypeDeformation.CURVE;
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            if (typeDeformation == TypeDeformation.BRUSH)
+            {
+                numPatternBrushEnCours = (numPatternBrushEnCours + 1) % patternBrushs.Count;
+                Debug.Log("Brush sélectionné : " + numPatternBrushEnCours);
+            }
+            else
+            {
+                typeDeformation = TypeDeformation.BRUSH;
+            }
+        }
+
         // Si on attend une direction, on vérifie les touches de direction
         if (waitingForDirection)
         {
@@ -92,32 +174,6 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.RightAlt))
-        {
-            amplitudeDeformation = amplitudeDeformation - 0.01f > 0 ? amplitudeDeformation - 0.01f : 0;
-        }
-        if (Input.GetKeyDown(KeyCode.LeftAlt))
-        {
-            amplitudeDeformation += 0.01f;
-        }
-        if (Input.GetKeyDown(KeyCode.Plus))
-        {
-            rayonVoisinage += 5;
-        }
-        if (Input.GetKeyDown(KeyCode.Minus))
-        {
-            rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 0;
-        }
-
-        if (Input.GetKeyDown(KeyCode.M))
-        {
-            for (int i = 1; i < chunks.Count; i++)
-            {
-                chunks[i].GetComponent<MeshRenderer>().material.color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
-            }
-            randomColorTimer = 3.0f;
-        }
-
         if (randomColorTimer <= 0.0f && chunks.Count > 0)
         {
             Color mainColor = chunks[0].GetComponent<MeshRenderer>().material.color;
@@ -127,37 +183,42 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        majHUD(); // maj des informations affich�es en temps r�el
+        majHUD();
 
-        // si pas de picking sur le terrain, pas de d�formation, on quitte sans rien faire
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
-
-        // RECHERCHE du VERTEx s�lectionn� par le picking = CIBLE
-        cible = RechercherVertexCible(hit);
-        // RECHERCHE des voisins du vertex CIBLE , ceux � une distance <= voisinnage
-        // (param�tre public qui sera modifiable en temps r�el)
-        listeVoisinsSel = RechercherVoisins(cible);
 
         if (Input.GetMouseButton(0))
         {
-            if (Input.GetKey(KeyCode.LeftControl))
-            {
-                typeAction = TypeAction.DEFORMATION_BAS;
-            }
-            else
-            {
-                typeAction = TypeAction.DEFORMATION_HAUT;
-            }
+            GameObject go = hit.collider.gameObject;
+            TP3_Terrain terrainScript = go.GetComponent<TP3_Terrain>();
 
-            switch (typeAction)
+            Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
+
+            cible = go.transform.TransformPoint(tempCible);
+
+            listeVoisinsSel = terrainScript.RechercherVoisins(cible);
+
+            if (terrainScript != null)
             {
-                case TypeAction.DEFORMATION_HAUT:
-                    AppliquerDeformation(listeVoisinsSel, Vector3.up);
-                    break;
-                case TypeAction.DEFORMATION_BAS:
-                    AppliquerDeformation(listeVoisinsSel, Vector3.down);
-                    break;
+                typeAction = Input.GetKey(KeyCode.LeftControl) ? TypeAction.DEFORMATION_BAS : TypeAction.DEFORMATION_HAUT;
+
+                Vector3 direction = typeAction == TypeAction.DEFORMATION_BAS ? Vector3.down : Vector3.up;
+
+                switch (typeDeformation)
+                {
+                    case TypeDeformation.CURVE:
+                        terrainScript.AppliquerDeformation(listeVoisinsSel, direction);
+                        break;
+                    case TypeDeformation.BRUSH:
+                        terrainScript.AppliquerDeformationBrush(listeVoisinsSel);
+                        break;
+                }
             }
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            RecalculerMeshCollider();
         }
     }
 
@@ -183,7 +244,7 @@ public class TP3_Terrain : MonoBehaviour
         return Vector3.zero; // Retourne zéro si aucune touche fléchée n'est pressée
     }
 
-    void CreateField()
+    public void CreateField()
     {
         p_mesh = new Mesh();
         p_mesh.Clear();
@@ -246,33 +307,48 @@ public class TP3_Terrain : MonoBehaviour
 
     private void CreateChunk(Vector3 offset)
     {
-        bool canBeCreate = true;
+        bool canBeCreated = true;
+
         foreach (GameObject c in chunks)
         {
             if (c.transform.position == this.transform.position + offset)
             {
-                canBeCreate = false;
+                canBeCreated = false;
                 break;
             }
         }
 
-        if (canBeCreate)
+        if (canBeCreated)
         {
-            GameObject chunk = new GameObject("TerrainChunk");
+            GameObject chunk = new GameObject("TerrainChunk" + (++nbChunks));
+            chunk.transform.position = this.transform.position + offset;
+
+            MeshFilter newMeshFilter = chunk.AddComponent<MeshFilter>();
+            MeshCollider newMeshCollider = chunk.AddComponent<MeshCollider>();
+            MeshRenderer newMeshRenderer = chunk.AddComponent<MeshRenderer>();
+
             TP3_Terrain terrainChunk = chunk.AddComponent<TP3_Terrain>();
+
             terrainChunk.dimension = this.dimension;
             terrainChunk.resolution = this.resolution;
             terrainChunk.CentrerPivot = this.CentrerPivot;
             terrainChunk.patternCurves = this.patternCurves;
+            terrainChunk.patternBrushs = this.patternBrushs;
+            terrainChunk.amplitudeDeformation = this.amplitudeDeformation;
+            terrainChunk.rayonVoisinage = this.rayonVoisinage;
+            terrainChunk.brushSize = this.brushSize;
+            terrainChunk.typeDeformation = this.typeDeformation;
 
-            chunk.transform.position = this.transform.position + offset;
+            terrainChunk.p_meshFilter = newMeshFilter;
+            terrainChunk.p_meshCollider = newMeshCollider;
+            terrainChunk.p_meshRenderer = newMeshRenderer;
         }
     }
 
     private void RecalculerMeshCollider()
     {
-        p_meshCollider.sharedMesh = null;
-        p_meshCollider.sharedMesh = p_meshFilter.mesh;
+        this.p_meshCollider.sharedMesh = null;
+        this.p_meshCollider.sharedMesh = this.p_meshFilter.mesh;
     }
 
     void majHUD()
@@ -299,48 +375,222 @@ public class TP3_Terrain : MonoBehaviour
     List<Voisin> RechercherVoisins(Vector3 cible)
     {
         List<Voisin> listV = new List<Voisin>();
-        for (int i = 0; i < p_vertices.Length; i++)
+
+        foreach (GameObject chunk in chunks)
         {
-            if (Vector3.Distance(cible, p_vertices[i]) < rayonVoisinage)
+            TP3_Terrain terrainScript = chunk.GetComponent<TP3_Terrain>();
+
+            Vector3[] vertices = terrainScript.p_vertices;
+
+            for (int i = 0; i < vertices.Length; i++)
             {
-                listV.Add(new Voisin(i, Vector3.Distance(cible, p_vertices[i])));
+                Vector3 vertexWorldPosition = chunk.transform.TransformPoint(vertices[i]);
+                float distanceToCible = Vector3.Distance(cible, vertexWorldPosition);
+
+                if (distanceToCible <= terrainScript.rayonVoisinage)
+                {
+                    listV.Add(new Voisin(i, distanceToCible, terrainScript.gameObject));
+                }
             }
         }
-
         return listV;
     }
 
     void AppliquerDeformation(List<Voisin> listeVoisinsSel, Vector3 orientation)
     {
-        float _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(0);
-        for (int i = 0; i < p_vertices.Length; i++)
+        if (patternCurves.Count == 0) return;
+
+        Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
+
+        foreach (Voisin voisin in listeVoisinsSel)
         {
-            if (p_vertices[i] == cible)
+            TP3_Terrain terrainScript = voisin.terrainAssocie.GetComponent<TP3_Terrain>();
+            if (terrainScript == null) continue;
+
+            if (!terrainsModifies.ContainsKey(terrainScript))
             {
-                p_vertices[i] += orientation * _force;
+                terrainsModifies[terrainScript] = terrainScript.p_vertices;
+            }
+
+            float _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(voisin.distance / rayonVoisinage);
+            terrainsModifies[terrainScript][voisin.indice] += orientation * _force;
+        }
+
+        foreach (var pair in terrainsModifies)
+        {
+            TP3_Terrain terrain = pair.Key;
+            Vector3[] vertices = pair.Value;
+
+            terrain.p_mesh.vertices = vertices;
+            terrain.p_mesh.RecalculateNormals();
+            terrain.p_meshFilter.mesh = terrain.p_mesh;
+        }
+    }
+
+    void AppliquerDeformationBrush(List<Voisin> voisins)
+    {
+        if (patternBrushs.Count == 0) return;
+
+        Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
+
+        Texture2D brushTexture = patternBrushs[numPatternBrushEnCours]; // Texture actuelle
+        int brushPixelSize = brushTexture.width;  // Texture du mesh carré 
+
+        Color[] brushPixels = brushTexture.GetPixels(); // Récupère tous les pixels une seule fois
+
+        Vector3 brushCenter = cible; // Vertex sélectionné par le clic
+
+        float brushWorldSize = brushSize * 2f; // Taille en espace 3D du brush (diamètre)
+        float pixelPerVertex = (float)brushPixelSize / brushWorldSize; // Ratio pixels/vertex pour avoir la zone de moyenne
+
+        foreach (var voisin in voisins)
+        {
+            TP3_Terrain terrainScript = voisin.terrainAssocie.GetComponent<TP3_Terrain>();
+            if (terrainScript == null) return;
+
+            if (!terrainsModifies.ContainsKey(terrainScript))
+                terrainsModifies[terrainScript] = terrainScript.p_vertices;
+
+            Vector3[] vertices = terrainScript.p_vertices;
+
+            Vector3 vertexPosition = vertices[voisin.indice];
+
+            // Calcul des coordonnées relatives du vertex par rapport au centre du brush
+            float relativeX = voisin.terrainAssocie.transform.TransformPoint(vertexPosition).x - brushCenter.x;
+            float relativeZ = voisin.terrainAssocie.transform.TransformPoint(vertexPosition).z - brushCenter.z;
+
+            // Si le vertex est dans la zone du brush
+            if (Mathf.Abs(relativeX) <= brushSize && Mathf.Abs(relativeZ) <= brushSize)
+            {
+                // On calcule les coordonnées normalisées (u, v) du vertex dans la zone du brush
+                float u = Mathf.InverseLerp(-brushSize, brushSize, relativeX);
+                float v = Mathf.InverseLerp(-brushSize, brushSize, relativeZ);
+
+                // Conversion en coordonnées pixel dans la texture du brush
+                int brushX = Mathf.FloorToInt(u * brushPixelSize);
+                int brushY = Mathf.FloorToInt(v * brushPixelSize);
+
+                // Calcul de la zone de pixel à considérer pour ce vertex
+                int pixelAreaSize = Mathf.FloorToInt(pixelPerVertex);
+
+                // Calcul de la moyenne des intensités de pixels autour du centre (brushX, brushY)
+                float averageIntensity = 0f;
+
+                // Zone de pixels à échantillonner autour du point central
+                int startX = Mathf.Clamp(brushX - pixelAreaSize / 2, 0, brushPixelSize - 1);
+                int endX = Mathf.Clamp(brushX + pixelAreaSize / 2, 0, brushPixelSize - 1);
+                int startY = Mathf.Clamp(brushY - pixelAreaSize / 2, 0, brushPixelSize - 1);
+                int endY = Mathf.Clamp(brushY + pixelAreaSize / 2, 0, brushPixelSize - 1);
+
+                // Parcours des pixels voisins dans la zone du brush
+                for (int x = startX; x <= endX; x++)
+                {
+                    for (int y = startY; y <= endY; y++)
+                    {
+                        int pixelIndex = x + y * brushPixelSize;
+                        averageIntensity += brushPixels[pixelIndex].grayscale; // Utilisation de GetPixels() pour éviter les appels à GetPixel()
+                    }
+                }
+
+                // Calcul de l'intensité moyenne
+                averageIntensity /= (endX - startX) * (endY - startY);
+
+                // Application de la force de déformation sur le vertex
+                float deformationAmount = averageIntensity * amplitudeDeformation;
+
+                if (typeAction == TypeAction.DEFORMATION_HAUT)
+                    terrainsModifies[terrainScript][voisin.indice].y += deformationAmount;
+
+                else if (typeAction == TypeAction.DEFORMATION_BAS)
+                    terrainsModifies[terrainScript][voisin.indice].y -= deformationAmount;
             }
         }
-        foreach (Voisin softSel in listeVoisinsSel)
+
+        // Mise à jour du mesh
+
+        foreach (var pair in terrainsModifies)
         {
-            _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(softSel.distance / rayonVoisinage);
-            p_vertices[softSel.indice] += orientation * _force;
+            TP3_Terrain terrain = pair.Key;
+            Vector3[] vertices = pair.Value;
+
+            terrain.p_mesh.vertices = vertices;
+            terrain.p_mesh.RecalculateNormals();
+            terrain.p_meshFilter.mesh = terrain.p_mesh;
+        }
+    }
+
+    void SetHeightVertices()
+    {
+        if (chunks.Count == 0) return;
+
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            TP3_Terrain chunk = chunks[i].GetComponent<TP3_Terrain>();
+            if (gameObject.transform.position + (Vector3.left * dimension) == chunks[i].transform.position)
+            {
+                for (int j = 0; j < this.resolution; j++)
+                {
+                    int leftVertexIndex = j * this.resolution + (this.resolution - 1);
+                    int rightVertexIndex = j * this.resolution;
+
+                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;
+                }
+                continue;
+            }
+
+            if (gameObject.transform.position + (Vector3.right * dimension) == chunks[i].transform.position)
+            {
+                for (int j = 0; j < this.resolution; j++)
+                {
+                    int rightVertexIndex = j * this.resolution + (this.resolution - 1);
+                    int leftVertexIndex = j * this.resolution;
+
+                    this.p_vertices[rightVertexIndex].y = chunk.p_vertices[leftVertexIndex].y;
+                }
+                continue;
+            }
+
+            if (gameObject.transform.position + (Vector3.forward * dimension) == chunks[i].transform.position)
+            {
+                for (int j = 0; j < this.resolution; j++)
+                {
+                    int forwardVertexIndex = j;
+                    int backVertexIndex = (this.resolution * (this.resolution - 1)) + j;
+
+                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;
+                }
+                continue;
+            }
+
+            if (gameObject.transform.position + (Vector3.back * dimension) == chunks[i].transform.position)
+            {
+                for (int j = 0; j < this.resolution; j++)
+                {
+                    int backVertexIndex = j;
+                    int forwardVertexIndex = (this.resolution * (this.resolution - 1)) + j;
+
+                    this.p_vertices[backVertexIndex].y = chunk.p_vertices[forwardVertexIndex].y;
+                }
+                continue;
+            }
         }
 
-        p_mesh.vertices = p_vertices;
-        p_mesh.RecalculateNormals();
-        p_meshFilter.mesh = p_mesh;
-        RecalculerMeshCollider();
-
-
-        // � ce stade , on connait les voisins s�lectionn�s (appel � RechercherVoisins ()�
-        // ce sont les vertices qui sont dans le rayon de voisinage r autour du vertex cible
-        // Pour chaque voisin (foreach), on connait sa distance d au vertex cible
-        // le rapport c = d/r renvoie une valeur entre 0 et 1
-        // c devient une abscisse � utiliser avec la courbe d'animation avec evaluate(c) pour
-        // obtenir une force de d�formation fonction de la distance au vertex s�lectionn�
-        // rem : je g�re ici un tableau publix d'AnimationCurve : patternCurves[]
-        // rem : ce qui permet d'un pattern � un autre (modificaion de numPatternCurveEnCours)
-        // cette force est multipli� par une amplitudeDeformation
-        // rem c'est un param�tre public de la classe qui pourra �tre modifi� en temps r�el // cette force est multipli� par orientation (bas ou haut) selon qu'on creuse ou �l�ve
+        this.p_mesh.vertices = p_vertices;
+        this.p_mesh.RecalculateNormals();
     }
+
+    public int GetDimension() => dimension;
+    public int GetResolution() => resolution;
+    public int GetBrushSize() => brushSize;
+    public float GetAmplitudeDeformation() => amplitudeDeformation;
+    public float GetRayonVoisinage() => rayonVoisinage;
+    public int GetVerticesCount() => p_vertices != null ? p_vertices.Length : 0;
+    public int GetNormalsCount() => p_normals != null ? p_normals.Length : 0;
+    public int GetTrianglesCount() => p_triangles != null ? p_triangles.Length : 0;
+    public int GetNumPatternCurveEnCours() => numPatternCurveEnCours;
+    public int GetNumPatternBrushEnCours() => numPatternBrushEnCours;
+    public static int GetChunksCount() => chunks.Count;
+
+    public void SetDimension(int dimension) => this.dimension = dimension;
+    public void SetResolution(int resolution) => this.resolution = resolution;
 }
