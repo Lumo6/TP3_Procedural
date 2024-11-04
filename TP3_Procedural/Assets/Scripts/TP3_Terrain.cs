@@ -10,14 +10,15 @@ using Random = UnityEngine.Random;
 public class TP3_Terrain : MonoBehaviour
 {
     private enum TypeAction {DEFORMATION_HAUT, DEFORMATION_BAS};
-    private TypeAction typeAction;
+    private TypeAction typeAction = TypeAction.DEFORMATION_HAUT;
 
     private enum TypeDeformation {CURVE, BRUSH}
     private TypeDeformation typeDeformation = TypeDeformation.CURVE;
 
     public int dimension, resolution, brushSize;
     public bool CentrerPivot;
-    public float amplitudeDeformation, rayonVoisinage;
+    public float amplitudeDeformation;
+    public int rayonVoisinage;
     public List<AnimationCurve> patternCurves;
     public List<Texture2D> patternBrushs;
 
@@ -28,7 +29,7 @@ public class TP3_Terrain : MonoBehaviour
 
     private Vector3[] p_vertices, p_normals;
     private int[] p_triangles;
-    public Camera p_cam;
+    private Camera p_cam;
 
     private Vector3 cible;
     private RaycastHit hit;
@@ -36,8 +37,8 @@ public class TP3_Terrain : MonoBehaviour
 
     private List<Voisin> listeVoisinsSel;
 
-    private static int numPatternCurveEnCours;
-    private static int numPatternBrushEnCours;
+    private static int numPatternCurveEnCours = 0;
+    private static int numPatternBrushEnCours = 0;
 
     private struct Voisin
     {
@@ -59,6 +60,29 @@ public class TP3_Terrain : MonoBehaviour
 
     private bool waitingForDirection = false; // Pour savoir si on attend une flèche
     private Vector3 newChunkDirection = Vector3.zero; // Pour stocker la direction du nouveau chunk
+
+    public TP3_Terrain(
+        int dimension, 
+        int resolution, 
+        bool CentrerPivot, 
+        List<AnimationCurve> patternCurves,
+        List<Texture2D> patternBrushs,
+        float amplitudeDeformation,
+        int rayonVoisinage,
+        int brushSize,
+        LayerMask maskPickingTerrain
+        ) 
+    {
+        this.dimension = dimension;
+        this.resolution = resolution;
+        this.CentrerPivot = CentrerPivot;
+        this.patternCurves = patternCurves;
+        this.patternBrushs = patternBrushs;
+        this.amplitudeDeformation = amplitudeDeformation;
+        this.rayonVoisinage = rayonVoisinage;
+        this.brushSize = brushSize;
+        this.maskPickingTerrain = maskPickingTerrain;
+    }
 
     private void Start()
     {
@@ -107,10 +131,10 @@ public class TP3_Terrain : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.LeftAlt)) {
             amplitudeDeformation = amplitudeDeformation + 0.01f < 5 ? amplitudeDeformation + 0.01f : 5.0f;
         }
-        if (Input.GetKeyDown(KeyCode.Plus)) {
+        if (Input.GetKeyDown(KeyCode.KeypadPlus)) {
             rayonVoisinage = rayonVoisinage + 5 < 100 ? rayonVoisinage + 5 : 100;
         }
-        if (Input.GetKeyDown(KeyCode.Minus)) {
+        if (Input.GetKeyDown(KeyCode.KeypadMinus)) {
             rayonVoisinage = rayonVoisinage - 5 > 0 ? rayonVoisinage - 5 : 1;
         }
         if (Input.GetKeyDown(KeyCode.O))
@@ -576,4 +600,13 @@ public class TP3_Terrain : MonoBehaviour
     public int GetNumPatternCurveEnCours() => numPatternCurveEnCours;
     public int GetNumPatternBrushEnCours() => numPatternBrushEnCours;
     public static int GetChunksCount() => chunks.Count;
+    public void SetDimension(int dimension) => this.dimension = dimension;
+    public void SetResolution(int resolution) => this.resolution = resolution;
+    public void ClearListChunks() {
+        foreach(GameObject go in chunks) {
+            Destroy(go);
+        }
+        chunks.Clear();
+    }
+
 }
