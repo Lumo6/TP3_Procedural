@@ -37,8 +37,11 @@ public class ModalWindowManager : MonoBehaviour
                       $"Nombre de Normales: {Terrain.GetNormalsCount()}\n" +
                       $"Nombre de Triangles: {Terrain.GetTrianglesCount() / 3}\n" +
                       $"Nombre de Chunks: {TP3_Terrain.GetChunksCount()}\n" +
-                      $"Num�ro du Pattern Curve en Cours: {Terrain.GetNumPatternCurveEnCours()}\n" +
-                      $"Num�ro du Pattern Brush en Cours: {Terrain.GetNumPatternBrushEnCours()}\n";
+                      $"Numéro du Pattern Curve en Cours: {Terrain.GetNumPatternCurveEnCours()}\n" +
+                      $"Numéro du Pattern Brush en Cours: {Terrain.GetNumPatternBrushEnCours()}\n"+
+                      $"Calcul distance de recherche vertex cible en Cours: {Terrain.currentDistanceMetric}\n" +
+                      $"Calcul distance de recherche voisins en Cours: {Terrain.currentDistanceMetricFindVertices}\n" +
+                      $"Méthode calcul des normales : {Terrain.GetRecalculateMethod()}\n";
         maillageTxt.text = text;
     }
 }

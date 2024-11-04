@@ -1259,7 +1259,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dimension: 150
-  resolution: 100
+  resolution: 50
   brushSize: 5
   CentrerPivot: 1
   amplitudeDeformation: 1.1
@@ -1288,11 +1288,111 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  - serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0.016666668
+      value: 1.0023586
+      inSlope: -0.4692431
+      outSlope: -0.4692431
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5202296
+      value: 0.7660651
+      inSlope: -1.6122584
+      outSlope: -1.6122584
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.6432396
+      value: 0.42713878
+      inSlope: -1.9800019
+      outSlope: -1.9800019
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.99583334
+      value: 0.0023584962
+      inSlope: -1.2047302
+      outSlope: -1.2047302
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  - serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  - serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.1008812
+      value: 0.8522744
+      inSlope: 1.2184291
+      outSlope: 1.2184291
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   patternBrushs:
+  - {fileID: 2800000, guid: beb9a5f88cc10ab44b6a1d5230a95072, type: 3}
+  - {fileID: 2800000, guid: 4bd49b81b6bf59540948845b700d869f, type: 3}
   - {fileID: 2800000, guid: c3ed617a5d75129478cafcbf1012932c, type: 3}
   maskPickingTerrain:
     serializedVersion: 2
     m_Bits: 8
+  currentDistanceMetric: 0
+  currentDistanceMetricFindVertices: 0
 --- !u!64 &1201534265
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1357,7 +1457,8 @@ MeshRenderer:
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
-  m_Materials: []
+  m_Materials:
+  - {fileID: 2100000, guid: 7e50d1dbb5974f54db965a4c8f5e3086, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1512,16 +1613,15 @@ MonoBehaviour:
     et cr\xE9er un nouveau terrain\r\nFl\xE8ches ou ZQSD : D\xE9placer la cam\xE9ra
     ou le personnage\r\nShiftGauche : Acc\xE9l\xE9rer le d\xE9placement\r\nCtrlGauche
     : Passer de la cam\xE9ra 3\xE8me personne \xE0 la cam\xE9ra 1\xE8re personne
-    et inversement\r\nCtrlDroit + ZQSD ou fl\xE8ches : Faire tourner le terrain\r\nEchap
-    : Sortir du mode d\xE9placement\r\nClic : Appliquer une \xE9l\xE9vation sur le
-    terrain\r\nCtrl + Clic : Appliquer une d\xE9pression sur le terrain\r\n+ : Augmenter
-    le rayon du pattern\r\n- : Diminuer le rayon du pattern\r\nP : Passer au pattern
-    suivant\r\nAlt : Augmenter l'intensit\xE9 de la d\xE9formation\r\nAltGr : R\xE9duire
-    l'intensit\xE9 de la d\xE9formation\r\nF : Changer de formule de calcul de distance\r\nV
-    : Changer de formule de calcul de distance pour les vertices voisins\r\nN : Calculer
-    uniquement les normales des vertices modifi\xE9s ou recalculer toutes les normales\r\nR
-    : Basculer entre calcul de voisinage sur la grille ou sur le rep\xE8re global
-    de la sc\xE8ne\r\nB : Passer au brush suivant\r"
+    et inversement\r\nCtrlDroit + souris : Faire tourner le terrain\r\nEchap : Sortir
+    du mode d\xE9placement\r\nClic : Appliquer une \xE9l\xE9vation sur le terrain\r\nCtrl
+    + Clic : Appliquer une d\xE9pression sur le terrain\r\n+ : Augmenter le rayon
+    du pattern\r\n- : Diminuer le rayon du pattern\r\nP : Passer au pattern suivant\r\nAlt
+    : Augmenter l'intensit\xE9 de la d\xE9formation\r\nAltGr : R\xE9duire l'intensit\xE9
+    de la d\xE9formation\r\nF : Changer de formule de calcul de distance\r\nV : Changer
+    de formule de calcul de distance pour les vertices voisins\r\nN : Calculer uniquement
+    les normales des vertices modifi\xE9s ou recalculer toutes les normales\r\nB
+    : Passer au brush suivant\r\nJ : Undo\nK : Redo"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

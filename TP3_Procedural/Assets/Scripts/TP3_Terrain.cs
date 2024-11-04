@@ -61,6 +61,10 @@ public class TP3_Terrain : MonoBehaviour
     private bool waitingForDirection = false; // Pour savoir si on attend une flèche
     private Vector3 newChunkDirection = Vector3.zero; // Pour stocker la direction du nouveau chunk
 
+    private Stack<Vector3[]> undoStack;
+    private Stack<Vector3[]> redoStack;
+
+
     public TP3_Terrain(
         int dimension, 
         int resolution, 
@@ -86,6 +90,9 @@ public class TP3_Terrain : MonoBehaviour
 
     private void Start()
     {
+        undoStack = new Stack<Vector3[]>();
+        redoStack = new Stack<Vector3[]>();
+
         p_meshFilter = GetComponent<MeshFilter>();
         p_meshCollider = GetComponent<MeshCollider>();
         p_meshRenderer = GetComponent<MeshRenderer>();
@@ -175,6 +182,32 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            ChangeDistanceMetric();
+        }
+
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            ChangeDistanceMetricFindVertices();
+        }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            recalculateAllNormals = !recalculateAllNormals;
+            Debug.Log("Recalculate all normals: " + recalculateAllNormals);
+        }
+
+        if (Input.GetKeyDown(KeyCode.J))
+        {
+            Undo();
+
+        }
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            Redo();
+        }
+
         // Si on attend une direction, on vérifie les touches de direction
         if (waitingForDirection)
         {
@@ -196,16 +229,31 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        majHUD();
-
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
+
+        if (Input.GetMouseButtonDown(0)) {
+            CaptureCurrentState();
+            Debug.Log("captured");
+            redoStack.Clear();
+        }
 
         if (Input.GetMouseButton(0)) {
             GameObject go = hit.collider.gameObject;
             TP3_Terrain terrainScript = go.GetComponent<TP3_Terrain>();
 
-            Vector3 tempCible = terrainScript.RechercherVertexCible(hit);
+            Mesh mesh = go.GetComponent<MeshFilter>().mesh;
+            int[] triangles = mesh.triangles;
+            Vector3[] vertices = mesh.vertices;
 
+            int triangleIndex = hit.triangleIndex * 3;
+            Vector3[] triangleVertices = new Vector3[]
+            {
+                vertices[triangles[triangleIndex]],
+                vertices[triangles[triangleIndex + 1]],
+                vertices[triangles[triangleIndex + 2]]
+            };
+
+            Vector3 tempCible = terrainScript.FindClosestVertex(triangleVertices, hit.point);
             cible = go.transform.TransformPoint(tempCible);
 
             listeVoisinsSel = terrainScript.RechercherVoisins(cible);
@@ -227,6 +275,7 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
+        // PHASE 6
         if (Input.GetMouseButtonUp(0))
         {
             RecalculerMeshCollider();
@@ -314,6 +363,8 @@ public class TP3_Terrain : MonoBehaviour
         p_meshCollider.sharedMesh = p_mesh;
 
         p_meshRenderer.material.color = Color.green;
+
+        undoStack.Push((Vector3[])p_vertices.Clone());
     }
 
     private void CreateChunk(Vector3 offset)
@@ -349,6 +400,9 @@ public class TP3_Terrain : MonoBehaviour
             terrainChunk.rayonVoisinage = this.rayonVoisinage;
             terrainChunk.brushSize = this.brushSize;
             terrainChunk.typeDeformation = this.typeDeformation;
+            terrainChunk.currentDistanceMetric = this.currentDistanceMetric;
+            terrainChunk.currentDistanceMetricFindVertices = this.currentDistanceMetricFindVertices;
+            terrainChunk.recalculateAllNormals = this.recalculateAllNormals;
 
             terrainChunk.p_meshFilter = newMeshFilter;
             terrainChunk.p_meshCollider = newMeshCollider;
@@ -360,11 +414,6 @@ public class TP3_Terrain : MonoBehaviour
     {
         this.p_meshCollider.sharedMesh = null;
         this.p_meshCollider.sharedMesh = this.p_meshFilter.mesh;
-    }
-
-    void majHUD()
-    {
-
     }
 
     Vector3 RechercherVertexCible(RaycastHit hit)
@@ -395,7 +444,7 @@ public class TP3_Terrain : MonoBehaviour
             for (int i = 0; i < vertices.Length; i++)
             {
                 Vector3 vertexWorldPosition = chunk.transform.TransformPoint(vertices[i]);
-                float distanceToCible = Vector3.Distance(cible, vertexWorldPosition);
+                float distanceToCible = CalculateDistanceVertices(cible, vertexWorldPosition);
 
                 if (distanceToCible <= terrainScript.rayonVoisinage)
                 {
@@ -411,6 +460,7 @@ public class TP3_Terrain : MonoBehaviour
         if (patternCurves.Count == 0) return;
 
         Dictionary<TP3_Terrain, Vector3[]> terrainsModifies = new Dictionary<TP3_Terrain, Vector3[]>();
+         Dictionary<TP3_Terrain, List<int>> modifiedVertices = new Dictionary<TP3_Terrain, List<int>>();
 
         foreach (Voisin voisin in listeVoisinsSel)
         {
@@ -422,8 +472,13 @@ public class TP3_Terrain : MonoBehaviour
                 terrainsModifies[terrainScript] = terrainScript.p_vertices;
             }
 
+            if (!modifiedVertices.ContainsKey(terrainScript)) {
+                modifiedVertices[terrainScript] = new List<int>();
+            }
+
             float _force = amplitudeDeformation * patternCurves[numPatternCurveEnCours].Evaluate(voisin.distance / rayonVoisinage);
             terrainsModifies[terrainScript][voisin.indice] += orientation * _force;
+            modifiedVertices[terrainScript].Add(voisin.indice);
         }
 
         foreach (var pair in terrainsModifies)
@@ -432,8 +487,14 @@ public class TP3_Terrain : MonoBehaviour
             Vector3[] vertices = pair.Value;
 
             terrain.p_mesh.vertices = vertices;
-            terrain.p_mesh.RecalculateNormals();
+            
+            if (modifiedVertices.ContainsKey(terrain))
+            {
+                terrain.RecalculateNormalsModifiedVertices(modifiedVertices[terrain]);
+            }
+            
             terrain.p_meshFilter.mesh = terrain.p_mesh;
+
         }
     }
 
@@ -608,5 +669,162 @@ public class TP3_Terrain : MonoBehaviour
         }
         chunks.Clear();
     }
+    public List<GameObject> GetChunks() => chunks;
 
+    public enum DistanceMetric { Euclidean, Manhattan, Chebyshev }
+    public DistanceMetric currentDistanceMetric = DistanceMetric.Euclidean;
+    // PHASE 1 : Changement formule calcul de distance
+    void ChangeDistanceMetric()
+    {
+        currentDistanceMetric = (DistanceMetric)(((int)currentDistanceMetric + 1) % 3);
+        Debug.Log("Distance métrique actuelle: " + currentDistanceMetric);
+    }
+
+    // PHASE 2
+    Vector3 FindClosestVertex(Vector3[] vertices, Vector3 point)
+    {
+        Vector3 closestVertex = vertices[0];
+        float minDistance = CalculateDistance(closestVertex, point);
+
+        foreach (var vertex in vertices)
+        {
+            float distance = CalculateDistance(vertex, point);
+            if (distance < minDistance)
+            {
+                closestVertex = vertex;
+                minDistance = distance;
+            }
+        }
+        return closestVertex;
+    }
+
+    // PHASE 2
+    float CalculateDistance(Vector3 a, Vector3 b)
+    {
+        switch (currentDistanceMetric)
+        {
+            case DistanceMetric.Euclidean:
+                return Vector3.Distance(a, b); // Distance Euclidienne
+            case DistanceMetric.Manhattan:
+                return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y) + Mathf.Abs(a.z - b.z); // Distance Manhattan 
+            case DistanceMetric.Chebyshev:
+                return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z)); // Distance Chebyshev
+            default:
+                return 0.0f;
+        }
+    }
+
+    public enum DistanceMetricFindVertices { Euclidean, Manhattan, Chebyshev }
+    public DistanceMetricFindVertices currentDistanceMetricFindVertices = DistanceMetricFindVertices.Euclidean;
+
+
+    // PHASE 3 : Changement formule calcul de distance pour voisin
+    void ChangeDistanceMetricFindVertices()
+    {
+        currentDistanceMetricFindVertices = (DistanceMetricFindVertices)(((int)currentDistanceMetricFindVertices + 1) % 3);
+        Debug.Log("Distance métrique actuelle pour recherche voisin: " + currentDistanceMetricFindVertices);
+    }
+
+    // PHASE 3
+    float CalculateDistanceVertices(Vector3 a, Vector3 b)
+    {
+        switch (currentDistanceMetricFindVertices)
+        {
+            case DistanceMetricFindVertices.Euclidean:
+                return Vector3.Distance(a, b); // Distance Euclidienne
+            case DistanceMetricFindVertices.Manhattan:
+                return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y) + Mathf.Abs(a.z - b.z); // Distance Manhattan 
+            case DistanceMetricFindVertices.Chebyshev:
+                return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z)); // Distance Chebyshev
+            default:
+                return 0.0f;
+        }
+    }
+
+    private bool recalculateAllNormals = true;
+    public bool GetRecalculateMethod () => recalculateAllNormals;
+
+    // PHASE 4
+    void RecalculateNormalsModifiedVertices(List<int> modifiedVertices)
+    {
+        if (recalculateAllNormals)
+        {
+            this.p_mesh.RecalculateNormals();
+        }
+        else
+        {
+            Vector3[] vertices = this.p_mesh.vertices;
+            Vector3[] normals = this.p_mesh.normals;
+            int[] triangles = this.p_mesh.triangles;
+
+            foreach (int vertexIndex in modifiedVertices)
+            {
+                Vector3 recalculatedNormal = Vector3.zero;
+
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    if (triangles[i] == vertexIndex || triangles[i + 1] == vertexIndex || triangles[i + 2] == vertexIndex)
+                    {
+                        Vector3 vertexA = vertices[triangles[i]];
+                        Vector3 vertexB = vertices[triangles[i + 1]];
+                        Vector3 vertexC = vertices[triangles[i + 2]];
+
+                        Vector3 triangleNormal = Vector3.Cross(vertexB - vertexA, vertexC - vertexA).normalized;
+
+                        recalculatedNormal += triangleNormal;
+                    }
+                }
+
+                recalculatedNormal.Normalize();
+
+                normals[vertexIndex] = recalculatedNormal;
+            }
+
+            this.p_mesh.normals = normals;
+        }
+    }
+
+    private void CaptureCurrentState()
+    {
+        Vector3[] currentVertices = (Vector3[])p_vertices.Clone();
+        undoStack.Push(currentVertices);
+    }
+
+    private void Undo()
+    {
+        if (undoStack.Count > 0)
+        {
+            Debug.Log("Undo");
+
+            Vector3[] lastState = undoStack.Pop();
+            redoStack.Push((Vector3[])p_vertices.Clone());
+
+            p_vertices = lastState;
+            p_mesh.vertices = lastState;
+            p_mesh.RecalculateNormals();
+            p_meshFilter.mesh = p_mesh;
+
+            RecalculerMeshCollider();
+
+            Debug.Log(redoStack.Count());
+        }
+    }
+
+    private void Redo()
+    {
+        if (redoStack.Count > 0)
+        {
+            Debug.Log("Redo");
+            
+            Vector3[] nextState = (Vector3[])redoStack.Pop().Clone();
+            undoStack.Push((Vector3[])p_vertices.Clone());
+
+            p_vertices = nextState;
+            p_mesh.vertices = nextState;
+            p_mesh.RecalculateNormals();
+            p_meshFilter.mesh = p_mesh;
+
+            RecalculerMeshCollider();
+        }
+    }
 }

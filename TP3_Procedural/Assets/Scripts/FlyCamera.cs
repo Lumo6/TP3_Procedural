@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class FlyCamera : MonoBehaviour
@@ -130,7 +131,7 @@ public class FlyCamera : MonoBehaviour
             cameraRotation.y -= Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
             cameraRotation.y = Mathf.Clamp(cameraRotation.y, -80f, 80f);
 
-            transform.localRotation = Quaternion.Euler(cameraRotation.y, currentAngle, 0f);
+            transform.localRotation = Quaternion.Euler(cameraRotation.y, currentAngle, 0f);            
         }
     }
 
@@ -173,7 +174,11 @@ public class FlyCamera : MonoBehaviour
         if (Input.GetKey(KeyCode.RightControl))
         {
             eulerAngles.y -= Input.GetAxis("Mouse X") * sensitivity;
-            Terrain.transform.localEulerAngles = eulerAngles;
+            
+            List<GameObject> chunks = Terrain.GetChunks();
+            foreach(GameObject go in chunks) {
+                go.transform.transform.localEulerAngles = eulerAngles;
+            }
         }
     }
     private void HandleObjectCreation()

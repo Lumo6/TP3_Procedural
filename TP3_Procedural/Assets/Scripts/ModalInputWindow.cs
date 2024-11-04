@@ -39,7 +39,7 @@ public class ModalInputWindow : MonoBehaviour
 
     void UpdateText()
     {
-        string text = "Propri�t�s du maillage en cours :\n" +
+        string text = "Propriétés du maillage en cours :\n" +
                       $"Dimension: {Terrain.GetDimension()}\n" +
                       $"Resolution: {Terrain.GetResolution()}\n";
         maillageTxt.text = text;
@@ -56,7 +56,6 @@ public class ModalInputWindow : MonoBehaviour
         float amplitudeDeformation = Terrain.amplitudeDeformation;
         int rayonVoisinage = Terrain.rayonVoisinage;
         int brushSize = Terrain.brushSize;
-        LayerMask maskPickingTerrain = Terrain.maskPickingTerrain;
 
         Destroy(Terrain);
 
