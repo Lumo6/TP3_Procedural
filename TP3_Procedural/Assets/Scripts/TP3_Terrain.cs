@@ -39,6 +39,9 @@ public class TP3_Terrain : MonoBehaviour
     private static int numPatternCurveEnCours;
     private static int numPatternBrushEnCours;
 
+    private Stack<Vector3[]> undoStack = new Stack<Vector3[]>();
+    private Stack<Vector3[]> redoStack = new Stack<Vector3[]>();
+
     private struct Voisin
     {
         public int indice;
@@ -183,8 +186,6 @@ public class TP3_Terrain : MonoBehaviour
             }
         }
 
-        majHUD();
-
         if (!Physics.Raycast(p_cam.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, maskPickingTerrain)) return;
 
         if (Input.GetMouseButton(0))
@@ -219,6 +220,18 @@ public class TP3_Terrain : MonoBehaviour
         if (Input.GetMouseButtonUp(0))
         {
             RecalculerMeshCollider();
+            CaptureCurrentState();
+            Debug.Log("captured");
+            redoStack.Clear();
+        }
+        if (Input.GetKeyDown(KeyCode.J))
+        {
+            Undo();
+
+        }
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            Redo();
         }
     }
 
@@ -593,4 +606,40 @@ public class TP3_Terrain : MonoBehaviour
 
     public void SetDimension(int dimension) => this.dimension = dimension;
     public void SetResolution(int resolution) => this.resolution = resolution;
+
+    private void CaptureCurrentState()
+    {
+        Vector3[] currentVertices = (Vector3[])p_mesh.vertices.Clone();
+        undoStack.Push(currentVertices);
+    }
+    private void Undo()
+    {
+        if (undoStack.Count > 0)
+        {
+            Debug.Log("Undo");
+            Vector3[] lastState = undoStack.Pop();
+            redoStack.Push((Vector3[])p_mesh.vertices.Clone());
+
+            p_mesh.vertices = lastState;
+            p_mesh.RecalculateNormals();
+            p_meshFilter.mesh = p_mesh;
+
+            RecalculerMeshCollider();
+        }
+    }
+    private void Redo()
+    {
+        if (redoStack.Count > 0)
+        {
+            Vector3[] nextState = redoStack.Pop();
+            undoStack.Push((Vector3[])p_mesh.vertices.Clone());
+
+            p_mesh.vertices = nextState;
+            p_mesh.RecalculateNormals();
+            p_meshFilter.mesh = p_mesh;
+
+            RecalculerMeshCollider();
+        }
+    }
+
 }

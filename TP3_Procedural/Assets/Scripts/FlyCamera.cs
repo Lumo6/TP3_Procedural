@@ -48,9 +48,18 @@ public class FlyCamera : MonoBehaviour
     {
         Vector3 startPosition = objectTransform.position;
         float elapsedTime = 0f;
+
         while (elapsedTime < duration)
         {
-            objectTransform.position = Vector3.Lerp(startPosition, destination, elapsedTime / duration);
+            Vector3 currentPosition = Vector3.Lerp(startPosition, destination, elapsedTime / duration);
+            if (Physics.Raycast(new Vector3(currentPosition.x, currentPosition.y + 1f, currentPosition.z), Vector3.down, out RaycastHit hitInfo, Mathf.Infinity, layerM))
+            {
+                currentPosition.y = hitInfo.point.y+1;
+            }
+
+
+            objectTransform.position = currentPosition;
+
             if (isFirstPersonView)
             {
                 Camera.main.transform.position = objectTransform.position;
@@ -59,8 +68,17 @@ public class FlyCamera : MonoBehaviour
             elapsedTime += Time.deltaTime;
             yield return null;
         }
+        if (Physics.Raycast(new Vector3(destination.x, destination.y + 50f, destination.z), Vector3.down, out RaycastHit finalHit, Mathf.Infinity, layerM))
+        {
+            destination.y = finalHit.point.y+1;
+        }
         objectTransform.position = destination;
     }
+
+
+
+
+
 
     private IEnumerator WaitForClick()
     {
@@ -103,6 +121,8 @@ public class FlyCamera : MonoBehaviour
         if (objectCreated)
         {
             HandleObjectMovement();
+            HandleObjectHeight();
+
         }
     }
 
@@ -172,6 +192,7 @@ public class FlyCamera : MonoBehaviour
             moveObject.transform.position = new Vector3(5, 1, 0);
             objectCreated = true;
             currentCoroutine = StartCoroutine(WaitForClickAndMove());
+            moveObject.layer = 2;
         }
 
         if (objectCreated && Input.GetKey(KeyCode.F2))
@@ -211,6 +232,15 @@ public class FlyCamera : MonoBehaviour
         {
             freeWillMode = true;
             StartCoroutine(MoveObjectToDestination(Camera.main.transform, new Vector3(0f, 15f, -10f), 1f));
+        }
+    }
+    private void HandleObjectHeight()
+    {
+        if (Physics.Raycast(new Vector3(moveObject.transform.position.x, moveObject.transform.position.y + 10f, moveObject.transform.position.z), Vector3.down, out RaycastHit hitInfo, Mathf.Infinity, layerM))
+        {
+            Vector3 adjustedPosition = moveObject.transform.position;
+            adjustedPosition.y = hitInfo.point.y + 1f; 
+            moveObject.transform.position = adjustedPosition;
         }
     }
 }

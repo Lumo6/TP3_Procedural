@@ -379,7 +379,7 @@ MonoBehaviour:
   Terrain: {fileID: 1201534264}
   layerM:
     serializedVersion: 2
-    m_Bits: 8
+    m_Bits: 1
   cursorTexture: {fileID: 10912, guid: 0000000000000000f000000000000000, type: 0}
 --- !u!20 &355823408 stripped
 Camera:
@@ -692,7 +692,7 @@ GameObject:
   m_Component:
   - component: {fileID: 705507995}
   - component: {fileID: 705507994}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Directional Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -921,6 +921,10 @@ PrefabInstance:
     - target: {fileID: 1740789792688254, guid: 5200e90a4a9fa9a4996f463685bd2d9a, type: 3}
       propertyPath: m_Name
       value: FlyCamera
+      objectReference: {fileID: 0}
+    - target: {fileID: 1740789792688254, guid: 5200e90a4a9fa9a4996f463685bd2d9a, type: 3}
+      propertyPath: m_Layer
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4066887280271192, guid: 5200e90a4a9fa9a4996f463685bd2d9a, type: 3}
       propertyPath: m_RootOrder
@@ -1382,7 +1386,7 @@ GameObject:
   - component: {fileID: 1319956562}
   - component: {fileID: 1319956561}
   - component: {fileID: 1319956560}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: EventSystem
   m_TagString: Untagged
   m_Icon: {fileID: 0}
